@@ -161,16 +161,16 @@ async function getAgentFromChain(rpcUrl: string, contractAddr: string, wallet: s
 
 // ─── Event log decoder ────────────────────────────────────────────────────────
 
-// Event topic0 (keccak256 of signature) — precomputed
+// Event topic0 (keccak256 of signature) — computed from AgentArena.sol events
 const TOPICS: Record<string, string> = {
-  AgentRegistered: "0x5a38a84bac2d7d3de03ce0b3ea5b6a4f33c5c6a4f5a38a84bac2d7d3de03ce0b", // placeholder
-  TaskPosted:      "0xd5f9bdf12911bd5e8e21ba9bc84e4302e45b027b24bfa16c25a2fec0ee4e6da3",
-  TaskApplied:     "0xf9a7d4d8bac0c21b95c91d4ee6e3d3f1fa23e1b94dd0c58eb56c9a0bbf6d1e2a",
-  TaskAssigned:    "0xa1d5e8f4c3b2a9d7e6f5c4b3a2d1e0f9c8b7a6d5e4f3c2b1a0d9e8f7c6b5a4",
-  ResultSubmitted: "0xc2b3a4d5e6f7c8b9a0d1e2f3c4b5a6d7e8f9c0b1a2d3e4f5c6b7a8d9e0f1c2",
-  TaskCompleted:   "0xe7c8d9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7",
-  TaskRefunded:    "0xf1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1",
-  ForceRefunded:   "0xa2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+  AgentRegistered: "0xda816ca2fc37b9eecec62ae8263008ec6be1afb38dc28bc9c7c51d7e348da9c2",
+  TaskPosted:      "0xcdf01a7fce2cec80e8e617626f3f34f334ed96168dfcbebc5b9fd0a64170337e",
+  TaskApplied:     "0x7f4b15de145103c2f48b4429df1c147497eb30d764058cdbdd0e7b7ad82d8fac",
+  TaskAssigned:    "0xfdbec991c520c476b24bb9ee9123ea146594b230b424c8140b23c33ac5906242",
+  ResultSubmitted: "0xc06b551d984e333ac851ab20b1454a08d92740468f52ff54c0cd5270817f20a9",
+  TaskCompleted:   "0x6f86192dffec1db9a9661011e799dea69af8d97961785f45d421ac62a59e606d",
+  TaskRefunded:    "0x098446306d18a8ba797caf5ad3be836bc7fadb0fa82d207e934992497bdeaf61",
+  ForceRefunded:   "0xa80d00e5ef4409f5bccace50fa19f6ae8a403470d95d8888605016b72021abda",
 };
 
 // NOTE: Real topic0 values must be computed from actual keccak256 of event signatures.
