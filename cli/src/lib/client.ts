@@ -1,4 +1,4 @@
-// src/lib/client.ts — Initialize ArenaClient from saved config
+// src/lib/client.ts — ArenaClient factory using OnchainOS wallet
 
 import { ethers } from "ethers";
 import { ArenaClient } from "@agent-arena/sdk";
@@ -6,46 +6,43 @@ import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "./config.js";
-import { loadWallet } from "./wallet.js";
+import { getAgentSigner } from "./wallet.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Load ABI from artifacts (relative to cli package)
 function loadABI(): unknown[] {
   const artifactPath = path.resolve(__dirname, "../../artifacts/AgentArena.json");
   const artifact = JSON.parse(readFileSync(artifactPath, "utf8"));
   return artifact.abi;
 }
 
-export async function getClient(password: string): Promise<ArenaClient> {
-  const rpcUrl          = config.get("rpcUrl") || "https://testrpc.xlayer.tech/terigon";
-  const indexerUrl      = config.get("indexerUrl") || "";
-  const contractAddress = config.get("contractAddress") || "";
-
-  if (!contractAddress) throw new Error("Contract address not configured. Run: arena init");
-  if (!indexerUrl)      throw new Error("Indexer URL not configured. Run: arena init");
-
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const wallet   = (await loadWallet(password)).connect(provider);
-  const abi      = loadABI();
-
-  return new ArenaClient({ indexerUrl, signer: wallet, contractAddress, abi });
+function getProvider(): ethers.JsonRpcProvider {
+  const rpcUrl = config.get("rpcUrl") || "https://testrpc.xlayer.tech/terigon";
+  return new ethers.JsonRpcProvider(rpcUrl);
 }
 
-/** Get a read-only client (no wallet needed) */
+function validateConfig() {
+  const contractAddress = config.get("contractAddress");
+  const indexerUrl      = config.get("indexerUrl");
+  if (!contractAddress) throw new Error("Contract address not set. Run: arena init");
+  if (!indexerUrl)      throw new Error("Indexer URL not set. Run: arena init");
+  return { contractAddress, indexerUrl };
+}
+
+/** Signed client — for apply/register/submit (needs wallet) */
+export async function getClient(localPassword?: string): Promise<ArenaClient> {
+  const { contractAddress, indexerUrl } = validateConfig();
+  const provider = getProvider();
+  const signer   = await getAgentSigner(provider, localPassword);
+  const abi      = loadABI();
+  return new ArenaClient({ indexerUrl, signer, contractAddress, abi });
+}
+
+/** Read-only client — for status/tasks (no wallet needed) */
 export function getReadonlyClient(): ArenaClient {
-  const rpcUrl          = config.get("rpcUrl") || "https://testrpc.xlayer.tech/terigon";
-  const indexerUrl      = config.get("indexerUrl") || "";
-  const contractAddress = config.get("contractAddress") || "";
-
-  if (!contractAddress || !indexerUrl) {
-    throw new Error("Not configured. Run: arena init");
-  }
-
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  // Use a random wallet for readonly operations (no signing needed)
-  const wallet = ethers.Wallet.createRandom().connect(provider);
-  const abi    = loadABI();
-
-  return new ArenaClient({ indexerUrl, signer: wallet, contractAddress, abi });
+  const { contractAddress, indexerUrl } = validateConfig();
+  const provider = getProvider();
+  const signer   = ethers.Wallet.createRandom().connect(provider);
+  const abi      = loadABI();
+  return new ArenaClient({ indexerUrl, signer, contractAddress, abi });
 }

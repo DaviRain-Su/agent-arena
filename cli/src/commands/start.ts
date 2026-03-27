@@ -1,6 +1,15 @@
-// src/commands/start.ts — Start the agent daemon
+// src/commands/start.ts — Agent daemon
+//
+// The CLI handles: task discovery, on-chain apply/submit, reputation tracking.
+// The CALLER handles: LLM execution (OpenClaw, Claude Code, etc.)
+//
+// Usage:
+//   arena start                    # interactive, prompts for wallet password if needed
+//   arena start --dry              # dry run, no on-chain txns
+//   ARENA_PASSWORD=xxx arena start # non-interactive (systemd / Docker)
+//
+// To use with a custom executor, import AgentLoop from the SDK directly.
 
-import { password } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
 import Table from "cli-table3";
@@ -8,160 +17,129 @@ import { AgentLoop } from "@agent-arena/sdk";
 import type { Task } from "@agent-arena/sdk";
 import { config } from "../lib/config.js";
 import { getClient } from "../lib/client.js";
-import { evaluate, execute } from "../lib/llm.js";
-
-function formatTask(t: Task): string {
-  const reward = chalk.yellow(`${t.reward} OKB`);
-  const deadline = new Date(t.deadline * 1000).toLocaleString();
-  const desc = t.description.slice(0, 60) + (t.description.length > 60 ? "..." : "");
-  return `#${t.id} [${reward}] ${desc} | due ${deadline}`;
-}
+import { getWalletBackend } from "../lib/wallet.js";
 
 export async function cmdStart(opts: { password?: string; dry?: boolean }) {
-  const agentId = config.get("agentId");
-  const address = config.get("walletAddress");
+  const agentId       = config.get("agentId");
+  const address       = config.get("walletAddress");
   const minConfidence = config.get("minConfidence") ?? 0.7;
   const pollInterval  = config.get("pollInterval")  ?? 30_000;
   const maxConcurrent = config.get("maxConcurrent") ?? 3;
   const minReward     = config.get("minReward")     ?? "0.001";
+  const backend       = getWalletBackend();
 
-  if (!agentId || !address) {
-    console.log(chalk.red("❌ Not initialized. Run: arena init"));
-    process.exit(1);
-  }
+  if (!agentId) { console.log(chalk.red("❌ Run: arena init")); process.exit(1); }
 
   console.log(chalk.cyan.bold("\n🏟️  Agent Arena Daemon\n"));
-  console.log(chalk.white(`  Agent:      ${chalk.yellow(agentId)}`));
-  console.log(chalk.white(`  Wallet:     ${address}`));
-  console.log(chalk.white(`  Confidence: ${chalk.yellow(`≥${minConfidence}`)}`));
-  console.log(chalk.white(`  Min reward: ${chalk.yellow(`${minReward} OKB`)}`));
-  console.log(chalk.white(`  Concurrent: ${chalk.yellow(String(maxConcurrent))}`));
-  console.log(chalk.white(`  Poll:       ${chalk.yellow(`${pollInterval / 1000}s`)}`));
-  if (opts.dry) console.log(chalk.yellow("\n  [DRY RUN — won't submit transactions]\n"));
+  console.log(`  Agent:   ${chalk.yellow(agentId)}`);
+  console.log(`  Wallet:  ${address} ${backend === "onchainos" ? chalk.green("[OKX OnchainOS TEE]") : chalk.dim("[local keystore]")}`);
+  console.log(`  Reward:  ≥ ${chalk.yellow(minReward + " OKB")}`);
+  console.log(`  Poll:    every ${pollInterval / 1000}s`);
+  if (opts.dry) console.log(chalk.yellow("\n  [DRY RUN]\n"));
   console.log();
 
-  const pwd = opts.password || await password({ message: "Wallet password:" });
+  // If OnchainOS: no password needed. If local: prompt.
+  let password = opts.password || process.env.ARENA_PASSWORD;
+  if (backend === "local" && !password) {
+    const { password: promptPassword } = await import("@inquirer/prompts");
+    password = await promptPassword({ message: "Wallet password:" });
+  }
 
   const spinner = ora("Connecting...").start();
   let client;
   try {
-    client = await getClient(pwd);
+    client = await getClient(password);
     const profile = await client.getMyProfile();
     if (!profile) {
-      spinner.fail(chalk.red("Agent not registered. Run: arena register"));
+      spinner.fail(chalk.red("Not registered. Run: arena register"));
       process.exit(1);
     }
     const stats = await client.getStats();
-    spinner.succeed(chalk.green(`Connected — ${stats.openTasks} open tasks, ${stats.totalAgents} agents`));
+    spinner.succeed(chalk.green(
+      `Connected — ${stats.openTasks} open tasks, ${stats.totalAgents} agents on-chain`
+    ));
   } catch (e: unknown) {
-    spinner.fail(chalk.red(`Connection failed: ${e instanceof Error ? e.message : String(e)}`));
+    spinner.fail(chalk.red(String(e instanceof Error ? e.message : e)));
     process.exit(1);
   }
 
   const log = (msg: string) => {
-    const ts = new Date().toISOString().slice(11, 19);
-    console.log(`${chalk.dim(ts)} ${msg}`);
+    const ts = chalk.dim(new Date().toISOString().slice(11, 19));
+    console.log(`${ts} ${msg}`);
   };
 
-  let tasksEvaluated = 0;
-  let tasksApplied   = 0;
-  let tasksExecuted  = 0;
-  let tasksSubmitted = 0;
+  let applied = 0, submitted = 0;
+
+  // ── AgentLoop hooks ─────────────────────────────────────────────────────────
+  // evaluate: filter tasks by reward + deadline. Confidence = 1 (accept all that pass filters).
+  // Real LLM-based filtering happens in the caller's process — they wrap the SDK directly.
+  //
+  // execute: THIS IS WHERE YOUR AGENT RUNTIME PLUGS IN.
+  // The daemon itself can't execute tasks (it doesn't have an LLM).
+  // In production, the caller (OpenClaw/Claude Code) drives execution.
+  // Here we emit a webhook/event and wait — or the user overrides via SDK.
 
   const loop = new AgentLoop(client, {
     evaluate: async (task: Task): Promise<number> => {
-      // Skip tasks below min reward
-      if (parseFloat(task.reward) < parseFloat(minReward)) {
-        log(chalk.dim(`Skip #${task.id}: reward ${task.reward} OKB < min ${minReward} OKB`));
-        return 0;
-      }
-
-      // Skip tasks already past deadline
-      if (task.deadline < Date.now() / 1000) {
-        log(chalk.dim(`Skip #${task.id}: expired`));
-        return 0;
-      }
-
-      tasksEvaluated++;
-      const spin = ora({ text: chalk.dim(`Evaluating #${task.id}...`), prefixText: "" }).start();
-      try {
-        const confidence = await evaluate(task);
-        if (confidence >= minConfidence) {
-          spin.succeed(chalk.green(`  #${task.id} confidence=${confidence.toFixed(2)} — will apply`));
-        } else {
-          spin.info(chalk.dim(`  #${task.id} confidence=${confidence.toFixed(2)} — skip`));
-        }
-        return confidence;
-      } catch (e: unknown) {
-        spin.fail(chalk.red(`  #${task.id} evaluate failed`));
-        return 0;
-      }
+      if (parseFloat(task.reward) < parseFloat(minReward)) return 0;
+      if (task.deadline < Date.now() / 1000) return 0;
+      log(chalk.dim(`  Task #${task.id}: ${task.reward} OKB — eligible`));
+      return 1.0; // accept all eligible tasks; caller filters further
     },
 
     execute: async (task: Task) => {
-      tasksExecuted++;
-      log(chalk.cyan(`\n▶ Executing task #${task.id}`));
-      log(chalk.dim(`  ${task.description.slice(0, 100)}...`));
+      // ── EXTENSION POINT ────────────────────────────────────────────────────
+      // This is where your Agent runtime executes the task.
+      //
+      // Option A (current): daemon calls a local webhook / stdin pipe
+      // Option B: caller uses SDK directly (ArenaClient + AgentLoop) with real LLM
+      //
+      // For now: emit task info to stdout so the caller can pick it up.
+      console.log(JSON.stringify({ event: "task_assigned", task }));
 
-      const spin = ora("  Running LLM...").start();
-      try {
-        const result = await execute(task);
-        spin.succeed(chalk.green(`  Done — ${result.resultHash.slice(0, 30)}...`));
-        log(chalk.dim(`  Preview: ${result.resultPreview.slice(0, 80)}...`));
-        tasksSubmitted++;
-        return {
-          resultHash:    opts.dry ? "dry-run:0x0" : result.resultHash,
-          resultPreview: result.resultPreview,
-        };
-      } catch (e: unknown) {
-        spin.fail(chalk.red(`  Execution failed: ${e instanceof Error ? e.message : String(e)}`));
-        throw e;
+      // In a real integration, you'd await an IPC response here.
+      // For demo purposes, return a placeholder.
+      if (opts.dry) {
+        return { resultHash: "dry:0x0", resultPreview: "dry run" };
       }
+      throw new Error(
+        `Task #${task.id} assigned but no executor registered.\n` +
+        `Use the SDK's AgentLoop directly with your own execute() hook:\n` +
+        `  import { ArenaClient, AgentLoop } from "@agent-arena/sdk"`
+      );
     },
 
     minConfidence,
     pollInterval,
     maxConcurrent,
-    log: (msg: string) => log(chalk.dim(msg)),
+    log: (msg) => log(chalk.dim(msg)),
   });
 
-  // Intercept apply to count + support dry run
-  const origApply = client.applyForTask.bind(client);
   if (opts.dry) {
-    (client as unknown as Record<string, unknown>).applyForTask = async (taskId: number) => {
-      tasksApplied++;
-      log(chalk.yellow(`[dry] Would apply for task #${taskId}`));
-      return "dry-run-hash";
-    };
-    (client as unknown as Record<string, unknown>).submitResult = async (taskId: number) => {
-      log(chalk.yellow(`[dry] Would submit result for task #${taskId}`));
-      return "dry-run-hash";
-    };
+    // Override apply/submit to be no-ops
+    Object.assign(client, {
+      applyForTask: async (id: number) => { applied++; log(chalk.yellow(`[dry] apply #${id}`)); return "0x0"; },
+      submitResult: async (id: number) => { submitted++; log(chalk.yellow(`[dry] submit #${id}`)); return "0x0"; },
+    });
   } else {
-    (client as unknown as Record<string, unknown>).applyForTask = async (taskId: number) => {
-      tasksApplied++;
-      return origApply(taskId);
-    };
+    const origApply = client.applyForTask.bind(client);
+    Object.assign(client, {
+      applyForTask: async (id: number) => { applied++; return origApply(id); },
+    });
   }
 
-  // Status line every 5 minutes
-  const statusInterval = setInterval(() => {
-    log(chalk.white.bold(
-      `📊 Stats — evaluated:${tasksEvaluated} applied:${tasksApplied} executed:${tasksExecuted} submitted:${tasksSubmitted}`
-    ));
+  // Status every 5 min
+  setInterval(() => {
+    log(chalk.white(`📊 applied:${applied} submitted:${submitted}`));
   }, 5 * 60_000);
 
-  // Graceful shutdown
   process.on("SIGINT", () => {
     console.log(chalk.yellow("\n\nShutting down..."));
     loop.stop();
-    clearInterval(statusInterval);
-    console.log(chalk.white.bold(
-      `\nSession summary:\n  Evaluated: ${tasksEvaluated}\n  Applied:   ${tasksApplied}\n  Executed:  ${tasksExecuted}\n  Submitted: ${tasksSubmitted}\n`
-    ));
+    console.log(`\n  applied: ${applied}  submitted: ${submitted}\n`);
     process.exit(0);
   });
 
-  log(chalk.green("Daemon started. Ctrl+C to stop.\n"));
+  log(chalk.green("Daemon running. Ctrl+C to stop.\n"));
   await loop.start();
 }

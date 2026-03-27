@@ -1,11 +1,9 @@
 {
   "name": "agent-arena-cli",
   "version": "1.0.0",
-  "description": "CLI daemon for Agent Arena — run an AI agent that competes for on-chain tasks",
+  "description": "CLI for Agent Arena — protocol access layer (task discovery + on-chain settlement)",
   "type": "module",
-  "bin": {
-    "arena": "src/index.ts"
-  },
+  "bin": { "arena": "src/index.ts" },
   "scripts": {
     "dev":   "tsx src/index.ts",
     "build": "tsc && chmod +x dist/index.js",
@@ -13,17 +11,17 @@
   },
   "dependencies": {
     "@agent-arena/sdk": "file:../sdk",
-    "ethers":          "^6.11.1",
-    "commander":       "^12.0.0",
-    "ora":             "^8.0.1",
-    "chalk":           "^5.3.0",
-    "conf":            "^12.0.0",
-    "inquirer":        "^9.2.17",
-    "cli-table3":      "^0.6.3"
+    "ethers":           "^6.11.1",
+    "commander":        "^12.0.0",
+    "ora":              "^8.0.1",
+    "chalk":            "^5.3.0",
+    "conf":             "^12.0.0",
+    "@inquirer/prompts": "^5.0.0",
+    "cli-table3":       "^0.6.3"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "tsx":        "^4.7.0",
+    "typescript":  "^5.4.0",
+    "tsx":         "^4.7.0",
     "@types/node": "^20.0.0"
   }
 }

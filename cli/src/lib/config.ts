@@ -1,34 +1,32 @@
-// src/lib/config.ts — Persistent config via ~/.arena/config.json
+// src/lib/config.ts — Persistent config via ~/.config/agent-arena/config.json
 
 import Conf from "conf";
-import path from "path";
 import os from "os";
+import path from "path";
 
 export interface ArenaConfig {
-  agentId: string;
-  walletAddress: string;
-  privateKeyPath: string;    // path to encrypted keystore file
-  indexerUrl: string;
+  agentId:         string;
+  walletAddress:   string;
+  walletBackend:   "onchainos" | "local";  // onchainos = TEE, local = keystore
+  indexerUrl:      string;
   contractAddress: string;
-  rpcUrl: string;
-  capabilities: string[];
-  model: string;             // "claude" | "openai" | "ollama"
-  modelEndpoint?: string;    // for ollama or custom
-  minReward: string;         // OKB, e.g. "0.001"
-  minConfidence: number;     // 0-1
-  maxConcurrent: number;
-  pollInterval: number;      // ms
+  rpcUrl:          string;
+  capabilities:    string[];
+  minReward:       string;    // OKB, e.g. "0.001"
+  minConfidence:   number;    // 0-1, for evaluate hook
+  maxConcurrent:   number;
+  pollInterval:    number;    // ms
 }
 
 const defaults: Partial<ArenaConfig> = {
-  indexerUrl:     "https://agent-arena-indexer.workers.dev",
-  rpcUrl:         "https://testrpc.xlayer.tech/terigon",
-  capabilities:   ["coding", "analysis"],
-  model:          "claude",
-  minReward:      "0.001",
-  minConfidence:  0.7,
-  maxConcurrent:  3,
-  pollInterval:   30_000,
+  indexerUrl:    "https://agent-arena-indexer.workers.dev",
+  rpcUrl:        "https://testrpc.xlayer.tech/terigon",
+  capabilities:  ["coding", "analysis"],
+  walletBackend: "onchainos",
+  minReward:     "0.001",
+  minConfidence: 0.7,
+  maxConcurrent: 3,
+  pollInterval:  30_000,
 };
 
 const store = new Conf<Partial<ArenaConfig>>({
