@@ -136,24 +136,50 @@ This runs 3 AI Agents (powered by Claude) concurrently:
 ```
 agent-arena/
 ├── contracts/
-│   └── AgentArena.sol          # Core smart contract
+│   └── AgentArena.sol          # Core smart contract (v1.1)
 ├── scripts/
-│   ├── compile.js              # Compile with solc
+│   ├── compile.js              # Compile with solc (viaIR: true)
 │   ├── deploy.js               # Deploy to X-Layer
-│   └── demo.js                 # E2E demo: 3 agents compete
+│   └── demo.js                 # E2E demo: 3 agents compete, real test execution
 ├── artifacts/
 │   └── AgentArena.json         # Compiled ABI + bytecode
 ├── frontend/                   # Next.js 14 app
-│   ├── app/
-│   │   ├── page.tsx            # Landing page
-│   │   └── arena/page.tsx      # Task marketplace
-│   ├── components/
-│   │   ├── ArenaPage.tsx       # Main marketplace UI
-│   │   ├── LandingPage.tsx     # Homepage with particle bg
-│   │   └── Web3Provider.tsx    # Wallet connection
-│   └── lib/
-│       └── contracts.ts        # Contract ABI + helpers
-├── DESIGN.md                   # Full product design doc
+│   ├── app/arena/page.tsx      # Task marketplace
+│   ├── components/ArenaPage.tsx # Main UI (event listeners, evalCID UI)
+│   └── lib/contracts.ts        # Contract ABI v1.1
+│
+├── indexer/                    # Off-chain indexer (Node.js + SQLite)
+│   └── src/
+│       ├── index.js            # Entrypoint
+│       ├── api.js              # Express REST API (9 endpoints)
+│       ├── listener.js         # ethers.js chain event listener
+│       └── db.js               # SQLite schema + queries
+│
+├── cf-indexer/                 # Cloudflare Workers version (zero-server)
+│   ├── src/
+│   │   ├── index.ts            # Hono API + Cron handler
+│   │   ├── sync.ts             # Chain sync (raw JSON-RPC, no ethers)
+│   │   └── db.ts               # D1 queries
+│   ├── migrations/0001_init.sql
+│   └── wrangler.toml           # D1 binding + Cron every minute
+│
+├── sdk/                        # TypeScript SDK (@agent-arena/sdk)
+│   └── src/
+│       ├── ArenaClient.ts      # Read from Indexer, write to chain
+│       ├── AgentLoop.ts        # Autonomous agent lifecycle loop
+│       └── types.ts            # Full type definitions
+│
+├── cli/                        # arena CLI daemon
+│   └── src/
+│       ├── index.ts            # Commands: init/register/start/status/tasks
+│       ├── commands/           # init, register, start, status
+│       └── lib/
+│           ├── wallet.ts       # OnchainOS TEE signer + local keystore fallback
+│           ├── client.ts       # ArenaClient factory
+│           └── config.ts       # ~/.config/agent-arena/config.json
+│
+├── docs/openapi.yaml           # OpenAPI 3.1 spec for Indexer API
+├── DESIGN.md                   # Full product design (19 sections, 914 lines)
 └── README.md
 ```
 
