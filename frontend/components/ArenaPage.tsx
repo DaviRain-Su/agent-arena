@@ -135,6 +135,24 @@ export function ArenaPage() {
     if (provider) loadData();
   }, [provider, loadData]);
 
+  // Real-time event listening — auto-refresh on chain events
+  useEffect(() => {
+    const contract = getReadContract();
+    if (!contract) return;
+    const refresh = () => { loadData(); };
+    contract.on("TaskPosted",    refresh);
+    contract.on("TaskApplied",   refresh);
+    contract.on("TaskAssigned",  refresh);
+    contract.on("TaskCompleted", refresh);
+    contract.on("TaskRefunded",  refresh);
+    contract.on("ForceRefunded", refresh);
+    return () => { contract.removeAllListeners(); };
+  }, [getReadContract, loadData]);
+
+  // Post task form state
+  const [evalType, setEvalType] = useState<"manual" | "test_cases" | "judge_prompt">("manual");
+  const [evalPrompt, setEvalPrompt] = useState("");
+
   const postTask = async () => {
     const contract = getWriteContract();
     if (!contract || !taskDesc || !rewardOKB) return;
@@ -142,11 +160,16 @@ export function ArenaPage() {
     try {
       const deadline = Math.floor(Date.now() / 1000) + Number(deadlineHours) * 3600;
       const reward = ethers.parseEther(rewardOKB);
-      const tx = await contract.postTask(taskDesc, deadline, { value: reward });
+      // Build evaluation standard CID (simplified: JSON hash as placeholder)
+      const evalStandard = evalType === "judge_prompt"
+        ? JSON.stringify({ type: "judge_prompt", prompt: evalPrompt || "Evaluate quality and correctness." })
+        : JSON.stringify({ type: evalType });
+      const evalCID = `eval:${btoa(evalStandard).slice(0, 32)}`;
+      const tx = await contract.postTask(taskDesc, evalCID, deadline, { value: reward });
       setTxHash(tx.hash);
       await tx.wait();
       setShowPostForm(false);
-      setTaskDesc(""); setRewardOKB("0.01");
+      setTaskDesc(""); setRewardOKB("0.01"); setEvalType("manual"); setEvalPrompt("");
       await loadData();
     } catch (e) {
       console.error("Post failed", e);
@@ -186,7 +209,7 @@ export function ArenaPage() {
     }
   };
 
-  const wrongNetwork = isConnected && chainId !== 196;
+  const wrongNetwork = isConnected && chainId !== 1952; // X-Layer Testnet
 
   const statusColor = (status: number) => {
     if (status === 0) return CYAN;
@@ -320,6 +343,40 @@ export function ArenaPage() {
               rows={4}
               className="w-full bg-black/40 border border-white/20 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none"
             />
+            {/* Evaluation Standard */}
+            <div>
+              <label className="text-xs text-white/40 block mb-2">
+                {lang === "en" ? "Evaluation Standard" : "评测标准"}
+              </label>
+              <div className="flex gap-2 mb-2">
+                {(["manual","judge_prompt"] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setEvalType(type)}
+                    className="px-3 py-1 text-xs border transition"
+                    style={{
+                      borderColor: evalType === type ? CYAN : "rgba(255,255,255,0.2)",
+                      color: evalType === type ? CYAN : "rgba(255,255,255,0.4)"
+                    }}
+                  >
+                    {type === "manual"
+                      ? (lang === "en" ? "Manual Judge" : "人工评审")
+                      : (lang === "en" ? "Prompt-based" : "Prompt 评审")}
+                  </button>
+                ))}
+              </div>
+              {evalType === "judge_prompt" && (
+                <textarea
+                  value={evalPrompt}
+                  onChange={e => setEvalPrompt(e.target.value)}
+                  placeholder={lang === "en"
+                    ? "Describe scoring criteria (e.g. correctness 40%, code quality 30%, efficiency 30%)"
+                    : "描述评分标准（例如：正确性40%、代码质量30%、效率30%）"}
+                  rows={2}
+                  className="w-full bg-black/40 border border-white/20 px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none"
+                />
+              )}
+            </div>
             <div className="flex gap-4">
               <div className="flex-1">
                 <label className="text-xs text-white/40 block mb-1">
