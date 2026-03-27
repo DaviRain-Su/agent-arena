@@ -1,0 +1,22 @@
+{
+  "name": "agent-arena-cf-indexer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply arena-db",
+    "db:migrate:local": "wrangler d1 migrations apply arena-db --local",
+    "db:seed": "wrangler d1 execute arena-db --file=migrations/002_seed.sql"
+  },
+  "dependencies": {
+    "hono": "^4.2.2",
+    "ethers": "^6.11.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.48.0",
+    "@cloudflare/workers-types": "^4.20240412.0",
+    "typescript": "^5.4.0"
+  }
+}

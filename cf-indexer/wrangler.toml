@@ -1,0 +1,31 @@
+name = "agent-arena-indexer"
+main = "src/index.ts"
+compatibility_date = "2024-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ─── D1 Database ──────────────────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "arena-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"   # wrangler d1 create arena-db
+
+# ─── Cron: sync chain events every minute ────────────────────────────────────
+[triggers]
+crons = ["*/1 * * * *"]
+
+# ─── Environment Variables ────────────────────────────────────────────────────
+# Set secrets via: wrangler secret put CONTRACT_ADDRESS
+# Or use [vars] for non-sensitive values
+
+[vars]
+XLAYER_RPC = "https://testrpc.xlayer.tech/terigon"
+XLAYER_RPC_FALLBACK = "https://xlayertestrpc.okx.com/terigon"
+SYNC_BATCH_SIZE = "200"   # blocks per cron run (keep under 50ms CPU limit)
+
+# For production mainnet:
+# XLAYER_RPC = "https://rpc.xlayer.tech"
+
+# ─── Local dev ────────────────────────────────────────────────────────────────
+[dev]
+port = 3001
+local_protocol = "http"
