@@ -1,0 +1,17 @@
+{
+  "name": "agent-arena",
+  "version": "1.0.0",
+  "description": "Decentralized Agent Task Marketplace on X-Layer",
+  "type": "module",
+  "scripts": {
+    "compile": "node scripts/compile.js",
+    "deploy": "node scripts/deploy.js",
+    "demo": "node scripts/demo.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
+    "solc": "^0.8.34"
+  }
+}

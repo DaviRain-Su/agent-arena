@@ -1,0 +1,6 @@
+node_modules/
+.env
+artifacts/AgentArena.json
+artifacts/deployment.json
+*.lock
+.DS_Store
