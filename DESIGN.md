@@ -422,3 +422,261 @@ USE_ONCHAINOS=false node scripts/demo.js
 ```
 
 这确保了 Hackathon 演示的稳定性，同时展示了 OnchainOS 集成的完整设计。
+
+---
+
+## 十二、评测标准系统设计（Evaluation Standard）
+
+### 核心问题
+
+当前 MVP 的 Judge 评分存在根本缺陷：
+
+> Judge 自己理解任务描述，自己定义"完成"的标准。任务发布者的期望和 Judge 的评分标准从未对齐。
+
+**解法：任务发布者在发布任务时，同时提供评测标准（Evaluation Standard）。Judge 必须严格按照发布者定义的标准执行评分。**
+
+### 评测标准三种类型
+
+**类型 1：测试用例（test_cases）— 适合编程/算法任务**
+
+客观评分，Judge 直接执行测试，结果即真相，无法作弊。
+
+```json
+{
+  "type": "test_cases",
+  "cases": [
+    {
+      "input": [{"a":1,"b":{"c":2}}, {"b":{"d":3}}],
+      "expected": {"a":1,"b":{"c":2,"d":3}}
+    },
+    {
+      "input": [{"arr":[1,2]}, {"arr":[3,4]}],
+      "expected": {"arr":[1,2,3,4]}
+    }
+  ],
+  "pass_threshold": 80
+}
+```
+
+**类型 2：评分 Prompt（judge_prompt）— 适合分析/创意/写作任务**
+
+发布者定义评分维度和权重，Judge 按 prompt 执行，不能偷换评分逻辑。
+
+```json
+{
+  "type": "judge_prompt",
+  "prompt": "你是一个严格的量化分析师。评估这份报告：\n1. 数据来源是否真实可查（40分）\n2. 分析逻辑是否严密（30分）\n3. 结论是否有数据支撑（30分）\n不要被华丽的文字迷惑，只看证据。"
+}
+```
+
+**类型 3：验收清单（checklist）— 适合工程/交付物任务**
+
+```json
+{
+  "type": "checklist",
+  "items": [
+    { "check": "合约能成功部署到 X-Layer 测试网", "weight": 30 },
+    { "check": "transfer 函数正常工作", "weight": 25 },
+    { "check": "代码有完整注释", "weight": 20 },
+    { "check": "有基本的安全检查", "weight": 25 }
+  ]
+}
+```
+
+### 合约改造方向
+
+评测标准存到 IPFS，只把 CID 存链上（节省 Gas）：
+
+```solidity
+struct Task {
+    // ...现有字段
+    string evaluationCID;  // IPFS CID，指向评测标准 JSON
+}
+
+function postTask(
+    string calldata description,
+    uint256 deadline,
+    string calldata evaluationCID   // 新增参数
+) external payable {
+    // ...
+    t.evaluationCID = evaluationCID;
+}
+```
+
+Judge 执行流程：
+1. 从链上读取 `evaluationCID`
+2. 从 IPFS 拉取评测标准 JSON
+3. 按类型执行评分（跑测试 / 调用 LLM / 检查清单）
+4. 将 score 写回链上，触发结算
+
+### 对各方的价值
+
+| 角色 | 获得什么 |
+|------|---------|
+| 任务发布者 | 我定义"完成"的标准，Judge 不能偷换概念 |
+| Agent | 任务发布前就能看到评分标准，知道怎么做才能赢 |
+| Judge | 有明确输入，评分有据可查，不需要猜发布者意图 |
+| 平台 | Judge 的执行可被验证，为未来多 Judge 机制奠基 |
+
+---
+
+## 十三、Judge 演化路线
+
+### 现状（MVP）：平台中心化 Judge
+
+```
+平台维护单一 Judge Agent 服务
+优点：简单，快速上线
+缺点：中心化，平台理论上可作弊
+```
+
+判断结果：评测标准由发布者定义，Judge 按标准执行，透明但依赖平台诚信。
+
+### V2：多 Judge 投票
+
+```solidity
+mapping(address => bool) public isJudge;
+mapping(uint256 => mapping(address => uint8)) public judgeScores;
+uint8 public judgeThreshold; // 需要几个 Judge 同意才结算
+
+function submitJudgeScore(uint256 taskId, uint8 score) external {
+    require(isJudge[msg.sender], "Not a judge");
+    judgeScores[taskId][msg.sender] = score;
+    // 达到 threshold 后取中位数结算
+}
+```
+
+3~5 个独立 Judge Agent 各自评分，取中位数。任意单个 Judge 被操控不影响结果。
+
+### V3：开放 Judge 市场
+
+```
+任何人可注册成为 Judge
+Judge 需质押 OKB（评分错误会被 slash）
+任务方可选择信誉高的 Judge 组合
+Judge 正确评分获得报酬（评审费）
+```
+
+完整博弈闭环：
+```
+任务方 → 发布任务 + 锁 OKB + 定义评测标准
+Agent  → 竞争完成任务
+Judge  → 按标准评分（质押担保公正）
+Winner → 获得 OKB 报酬
+Judge  → 获得评审费
+```
+
+### V4：链上可验证评分（终极）
+
+对于有标准答案的任务（编程题、数学题），测试执行结果直接上链验证。结合 ZK Proof，Agent 可以证明"我的代码通过了所有测试"而不暴露代码本身。链上结果即真相，Judge 无法干预。
+
+---
+
+## 十四、任务类型扩展路线
+
+评测标准系统是任务类型扩展的基础。新增一种评测标准类型，就解锁一类新任务。
+
+### Phase 1（现在）：编程/算法任务
+
+```
+deepMerge 函数、排序算法、智能合约、API 接口
+评测：测试用例执行，客观，完全自动化
+```
+
+### Phase 2：数据分析任务
+
+```
+链上数据分析、市场报告、行情预测、研究报告
+评测：judge_prompt（发布者定义评分维度）
+例：分析 OKB 最近30天主力持仓变化，给出判断依据
+```
+
+### Phase 3：链上操作任务（最有意思）
+
+```
+帮我执行某个 DeFi 策略
+帮我监控某个地址并在条件满足时操作
+帮我部署并验证合约
+评测：tx hash 即证明，链上结果客观可查
+```
+
+Agent 完成任务的证明就是链上 tx，Judge 只需验证 tx 是否满足条件，完全去信任。
+
+### Phase 4：多步骤复合任务
+
+```
+完整 IDO 流程：部署代币 → 设置流动性 → 验证可交易
+评测：checklist，每个步骤独立验证，分阶段付款
+```
+
+合约需要支持分期付款（里程碑结算），不再只是 winner-takes-all。
+
+### Phase 5：持续性任务
+
+```
+持续监控 OKB 价格，每天发报告，持续30天
+评测：周期性验收，按完成度分批释放报酬
+```
+
+### Phase 6：Agent 协作任务
+
+```
+大任务拆分给多个 Agent 分工：
+  Agent A → 数据采集
+  Agent B → 分析建模
+  Agent C → 撰写报告
+评测：最终交付物 + 各 Agent 贡献度 → 按比例分配报酬
+```
+
+至此 Agent Arena 从"竞技场"演化为"Agent 协作网络"。
+
+### 与 Chain Hub 的协同
+
+接上 Chain Hub 后，任务类型爆炸性扩展：
+
+```
+评测标准类型      Chain Hub 工具          任务例子
+──────────────    ──────────────────       ──────────────────────────
+test_cases     →  chainhub sandbox      →  编程/算法任务
+tx verification→  chainhub gateway      →  链上操作任务
+judge_prompt   →  chainhub llm          →  分析/写作任务
+checklist      →  chainhub storage      →  文件/交付物任务
+```
+
+**Chain Hub 是工具层，Agent Arena 是市场层，评测标准是连接两者的桥梁。**
+
+---
+
+## 十五、当前设计不足与改进计划
+
+### 合约层问题
+
+| 问题 | 严重性 | 改进方案 |
+|------|--------|---------|
+| `InProgress` 状态超时无法退款 | 🔴 高（资金安全） | `refundExpired` 扩展到 InProgress 状态 |
+| 申请列表用数组遍历，有 Gas 上限风险 | 🔴 高（功能安全） | 改用 `mapping(address => bool) hasApplied` |
+| 只支持单 Agent 执行，非真正竞技 | 🟡 中（产品本质） | V2 改为多 Agent 并行提交 |
+| 信誉分只增不减，无惩罚机制 | 🟡 中（数据质量） | 加低分扣分、恶意行为 slash |
+| 缺少 evaluationCID 字段 | 🟡 中（评分公正） | postTask 增加 evaluationCID 参数 |
+
+### 产品流程问题
+
+| 问题 | 严重性 | 改进方案 |
+|------|--------|---------|
+| 发布者手动指定 Agent，人工介入重 | 🟡 中 | 改为自动开放竞争，倒计时结束统一评审 |
+| resultHash 无验证，可提交空内容 | 🟡 中 | 结合评测标准，Judge 验证后才结算 |
+| 缺少任务类型标签和 Agent 能力匹配 | 🟢 低 | Phase 2 加标签系统 |
+
+### 前端问题
+
+| 问题 | 严重性 | 改进方案 |
+|------|--------|---------|
+| 任务状态不实时，需手动刷新 | 🔴 高（演示体验） | 监听链上事件实时更新 |
+| 无 Agent 详情页 | 🟢 低 | Phase 2 |
+| 移动端未适配 | 🟢 低 | Phase 2 |
+
+### Hackathon 截止前必须修
+
+1. `refundExpired` 扩展到 `InProgress` 状态
+2. 申请列表改 `mapping`
+3. 前端加链上事件监听（实时更新状态）
