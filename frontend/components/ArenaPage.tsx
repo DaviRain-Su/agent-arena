@@ -740,29 +740,125 @@ export function ArenaPage() {
         {/* Agent Leaderboard */}
         {agents.length > 0 && (
           <div>
-            <h2 className="text-xs text-white/40 uppercase tracking-[0.2em] mb-4">
-              {lang === "en" ? "Agent Leaderboard" : "Agent 排行榜"}
-            </h2>
-            <div className="border border-white/10 divide-y divide-white/10">
-              {agents
-                .sort((a, b) => b.avgScore - a.avgScore)
-                .map((agent, i) => (
-                  <div key={agent.wallet} className="p-4 flex items-center gap-4">
-                    <span className="text-xl font-light w-8 text-center"
-                      style={{ color: i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : "rgba(255,255,255,0.2)" }}>
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{agent.agentId}</p>
-                      <p className="text-xs text-white/40 font-mono">{shortenAddress(agent.wallet)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm" style={{ color: CYAN }}>{agent.avgScore}/100</p>
-                      <p className="text-xs text-white/40">{agent.tasksCompleted} {lang === "en" ? "tasks" : "任务"}</p>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs text-white/40 uppercase tracking-[0.2em]">
+                {lang === "en" ? "Agent Leaderboard — 宗门声望榜" : "Agent 排行榜 — 宗门声望榜"}
+              </h2>
+              <span className="text-xs text-white/20">
+                {lang === "en" ? `${agents.length} agents registered` : `${agents.length} 个 Agent 已注册`}
+              </span>
             </div>
+
+            {/* 平台统计栏 */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[
+                {
+                  label: lang === "en" ? "Total Tasks" : "总任务数",
+                  value: tasks.length,
+                },
+                {
+                  label: lang === "en" ? "Completed" : "已完成",
+                  value: tasks.filter(t => t.status === 2).length,
+                },
+                {
+                  label: lang === "en" ? "Total Rewards" : "累计结算",
+                  value: (() => {
+                    const total = tasks
+                      .filter(t => t.status === 2)
+                      .reduce((sum, t) => sum + Number(ethers.formatEther(t.reward)), 0);
+                    return `${total.toFixed(3)} OKB`;
+                  })(),
+                },
+              ].map(({ label, value }) => (
+                <div key={label} className="border border-white/10 bg-white/[0.02] px-4 py-3 text-center">
+                  <p className="text-xs text-white/40 mb-1">{label}</p>
+                  <p className="text-lg font-light" style={{ color: CYAN }}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* 排行榜主体 */}
+            <div className="border border-white/10 divide-y divide-white/5">
+              {/* 表头 */}
+              <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-white/25 uppercase tracking-widest">
+                <div className="col-span-1">#</div>
+                <div className="col-span-4">{lang === "en" ? "Agent" : "Agent"}</div>
+                <div className="col-span-2 text-center">{lang === "en" ? "Realm" : "境界"}</div>
+                <div className="col-span-2 text-center">{lang === "en" ? "Score" : "信誉分"}</div>
+                <div className="col-span-2 text-center">{lang === "en" ? "Completed" : "完成"}</div>
+                <div className="col-span-1 text-right">{lang === "en" ? "Win%" : "胜率"}</div>
+              </div>
+
+              {[...agents]
+                .sort((a, b) => b.avgScore - a.avgScore)
+                .map((agent, i) => {
+                  const realm = realmLabel(agent.avgScore);
+                  const isMe = agent.wallet.toLowerCase() === address?.toLowerCase();
+                  const rankColor = i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : "rgba(255,255,255,0.2)";
+                  const rankEmoji = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+
+                  return (
+                    <div
+                      key={agent.wallet}
+                      className="grid grid-cols-12 gap-2 px-4 py-3 items-center transition"
+                      style={{
+                        background: isMe ? `${CYAN}08` : "transparent",
+                        borderLeft: isMe ? `2px solid ${CYAN}` : "2px solid transparent",
+                      }}
+                    >
+                      {/* 排名 */}
+                      <div className="col-span-1 text-center text-sm font-light" style={{ color: rankColor }}>
+                        {rankEmoji}
+                      </div>
+
+                      {/* Agent 信息 */}
+                      <div className="col-span-4 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-white truncate">{agent.agentId}</p>
+                          {isMe && (
+                            <span className="text-xs px-1.5 py-0.5 shrink-0" style={{ background: `${CYAN}20`, color: CYAN }}>
+                              {lang === "en" ? "YOU" : "我"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-white/30 font-mono">{shortenAddress(agent.wallet)}</p>
+                      </div>
+
+                      {/* 境界 */}
+                      <div className="col-span-2 text-center">
+                        <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${realm.color}40`, color: realm.color }}>
+                          {lang === "en" ? realm.en : realm.zh}
+                        </span>
+                      </div>
+
+                      {/* 信誉分 + 进度条 */}
+                      <div className="col-span-2 text-center">
+                        <p className="text-sm font-light" style={{ color: CYAN }}>{agent.avgScore}</p>
+                        <div className="w-full bg-white/10 h-0.5 mt-1 mx-auto max-w-[60px]">
+                          <div className="h-0.5" style={{ width: `${agent.avgScore}%`, background: realm.color }} />
+                        </div>
+                      </div>
+
+                      {/* 完成任务数 */}
+                      <div className="col-span-2 text-center">
+                        <p className="text-sm text-white/60">{agent.tasksCompleted}</p>
+                        <p className="text-xs text-white/25">{lang === "en" ? "tasks" : "个任务"}</p>
+                      </div>
+
+                      {/* 胜率（暂时从 tasksCompleted / attempted 推算，若无 attempted 数据显示 — ）*/}
+                      <div className="col-span-1 text-right">
+                        <p className="text-xs text-white/40">—</p>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <p className="text-xs text-white/20 mt-3 text-right">
+              {lang === "en"
+                ? "Reputation data is immutable and stored on-chain · ERC-8004 compatible"
+                : "信誉数据链上永久存储，不可篡改 · ERC-8004 兼容"}
+            </p>
           </div>
         )}
 
