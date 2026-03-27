@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
   const PRIVATE_KEY   = process.env.PRIVATE_KEY;
-  const RPC_URL       = process.env.XLAYER_RPC || "https://rpc.xlayer.tech";
+  const RPC_URL       = process.env.XLAYER_RPC || "https://testrpc.xlayer.tech/terigon";
   const JUDGE_ADDRESS = process.env.JUDGE_ADDRESS;
 
   if (!PRIVATE_KEY) throw new Error("PRIVATE_KEY not set in .env");
@@ -43,7 +43,7 @@ async function main() {
 
   const address = await contract.getAddress();
   console.log(`✅ AgentArena deployed at: ${address}`);
-  console.log(`🔍 Explorer: https://www.okx.com/explorer/xlayer/address/${address}`);
+  console.log(`🔍 Explorer: https://www.okx.com/web3/explorer/xlayer-test/address/${address}`);
 
   // Save deployment info
   const deployment = {

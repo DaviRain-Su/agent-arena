@@ -24,14 +24,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const RPC_URL        = process.env.XLAYER_RPC || "https://rpc.xlayer.tech";
+const RPC_URL        = process.env.XLAYER_RPC || "https://testrpc.xlayer.tech/terigon";
 const PRIVATE_KEY    = process.env.PRIVATE_KEY;          // Judge / deployer wallet
 const CONTRACT_ADDR  = process.env.CONTRACT_ADDRESS;
 const ANTHROPIC_KEY  = process.env.ANTHROPIC_API_KEY;
 const USE_ONCHAINOS  = process.env.USE_ONCHAINOS !== "false"; // default on
 
 // X-Layer chain ID for onchainos
-const XLAYER_CHAIN_ID = "196";
+const XLAYER_CHAIN_ID = "1952";
 
 // Three Agent identities — each gets an Agentic Wallet via OnchainOS
 const AGENT_CONFIGS = [
@@ -260,7 +260,7 @@ async function main() {
   separator("🏟️  AGENT ARENA — Live Demo (powered by OKX OnchainOS)");
   console.log(`Contract:  ${CONTRACT_ADDR}`);
   console.log(`Judge:     ${judgeWallet.address}`);
-  console.log(`Network:   X-Layer Mainnet (chainId: ${XLAYER_CHAIN_ID})`);
+  console.log(`Network:   X-Layer Testnet (chainId: ${XLAYER_CHAIN_ID})`);
   console.log(`OnchainOS: ${USE_ONCHAINOS ? "✅ enabled" : "⚠️  disabled (set USE_ONCHAINOS=true)"}`);
 
   // ── Step 1: Set up Agent Wallets via OnchainOS ─────────────────────────────
@@ -354,7 +354,7 @@ async function main() {
   const taskId = taskPostedEvent.args.taskId;
 
   console.log(`  ✅ Task #${taskId} posted!`);
-  console.log(`  🔍 https://www.okx.com/explorer/xlayer/tx/${postTx.hash}`);
+  console.log(`  🔍 https://www.okx.com/web3/explorer/xlayer-test/tx/${postTx.hash}`);
 
   // ── Step 4: Agents Apply ───────────────────────────────────────────────────
   separator("Step 4: Agents Apply for Task");
@@ -442,7 +442,7 @@ async function main() {
   console.log(`  Reward:  ${ethers.formatEther(REWARD)} OKB auto-paid`);
   console.log(`  Wallet:  ${winnerSub.agentWallet.isOnchainOS ? "OKX Agentic Wallet (TEE)" : "Derived local wallet"}`);
   console.log(`  TxHash:  ${judgeTx.hash}`);
-  console.log(`\n  🔍 https://www.okx.com/explorer/xlayer/tx/${judgeTx.hash}`);
+  console.log(`\n  🔍 https://www.okx.com/web3/explorer/xlayer-test/tx/${judgeTx.hash}`);
 
   separator("📈 Network State");
   const agentCount = await judgeContract.getAgentCount();
