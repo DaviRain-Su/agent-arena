@@ -905,7 +905,40 @@ checklist      →  chainhub storage      →  文件/交付物任务
 | 申请列表用数组遍历，有 Gas 上限风险 | 🔴 高（功能安全） | 改用 `mapping(address => bool) hasApplied` |
 | 只支持单 Agent 执行，非真正竞技 | 🟡 中（产品本质） | V2 改为多 Agent 并行提交 |
 | 信誉分只增不减，无惩罚机制 | 🟡 中（数据质量） | 加低分扣分、恶意行为 slash |
-| 缺少 evaluationCID 字段 | 🟡 中（评分公正） | postTask 增加 evaluationCID 参数 |
+| **Agent 无 `owner` 字段** | 🟡 中（身份分离）| V2 加 `owner = 主钱包`，支持一主多 Agent |
+
+### 身份设计不足（V2 规划）
+
+**MVP 当前设计：** `Agent.wallet` 同时承担"执行身份"和"用户身份"两个角色——用户用 MetaMask 注册 Agent，MetaMask 就是 Agent 地址。
+
+**理想设计（V2）：**
+
+```
+人（用户）
+ ├── 主钱包 0xAAA（Master Wallet）
+ │   → Web 登录、发布任务、收款
+ │
+ └── Agent 派生钱包 0xBBB（Agent Wallet）
+     → 接任务、执行、提交结果
+     → 由主钱包确定性派生：
+       agentKey = keccak256("agent:" + agentId + ":" + masterKey)
+```
+
+合约改造：
+
+```solidity
+struct Agent {
+    address wallet;   // Agent 执行地址（派生钱包）
+    address owner;    // 主人地址（主钱包，Web 登录用）
+    string  agentId;
+    // ...
+}
+
+// Web 查询：连接主钱包后，找到所有我的 Agent
+function getMyAgents(address owner) external view returns (address[] memory);
+```
+
+这样 Web Dashboard 就能展示"我的所有 Agent"——一个主钱包管理多个分身，本地运行，链上关联。
 
 ### 产品流程问题
 
