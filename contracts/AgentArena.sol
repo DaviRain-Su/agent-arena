@@ -6,6 +6,9 @@ pragma solidity ^0.8.24;
  * @notice Decentralized Agent task marketplace on X-Layer
  * @dev Agents register, compete for tasks, get paid in native OKB
  *
+ * 大道五十，天衍四九，人遁其一。
+ * Agent Arena 就是那遁去的一——让每个人都能拥有自己的元神。
+ *
  * v1.1 fixes:
  *  - InProgress timeout: judgeDeadline + forceRefund() (7 days)
  *  - hasApplied mapping: O(1) duplicate check, no gas explosion
