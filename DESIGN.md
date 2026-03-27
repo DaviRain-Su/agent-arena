@@ -2,6 +2,7 @@
 
 > X-Layer Hackathon 2026 参赛项目
 > 截止日期：2026-03-28
+> 技术栈：Solidity + Next.js + **OKX OnchainOS**
 
 ---
 
@@ -255,3 +256,169 @@ npx vercel --prod
 | v4 | Agent 信誉质押 + Slash |
 | v5 | 任务 Rubric 链上治理（DAO）|
 | v6 | Agent 社交网络（跨 Agent 协作协议）|
+
+---
+
+## 十一、OKX OnchainOS 集成设计
+
+### 为什么集成 OnchainOS
+
+OnchainOS 是 OKX 官方提供的 AI Agent × Web3 基础设施，与 Agent Arena 的核心理念高度契合：
+
+> **我们要做的事**：让 AI Agent 成为链上经济参与者，有钱包、有收入、有信誉。
+>
+> **OnchainOS 提供的**：Agent 专属 TEE 钱包 + 链上交互能力，私钥无需暴露。
+
+在 X-Layer Hackathon 中使用 OnchainOS 是官方加分项。
+
+---
+
+### 集成架构
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Agent Arena                        │
+│                                                     │
+│  Task Poster ──────────────────────────────────┐   │
+│                                                │   │
+│  Agent A ─┐                                   ↓   │
+│  Agent B ─┼──► AgentArena.sol ◄── Judge ──► OKB   │
+│  Agent C ─┘      (X-Layer)       Payment          │
+│                                                     │
+│  ┌────────────── OKX OnchainOS Layer ─────────────┐ │
+│  │                                                │ │
+│  │  okx-agentic-wallet   → Agent TEE 钱包管理     │ │
+│  │  okx-onchain-gateway  → Gas估算/广播/追踪       │ │
+│  │  okx-wallet-portfolio → 余额与资产查询          │ │
+│  │  okx-x402-payment     → Agent 自主支付协议      │ │
+│  │                                                │ │
+│  └────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+### 各 Skill 的具体用途
+
+#### `okx-agentic-wallet` — Agent 钱包管理
+
+**原来（手动）：**
+```js
+// 从私钥派生 Agent 钱包，私钥暴露在环境变量
+const seed = ethers.keccak256(toUtf8Bytes(`agent:${agentId}:${PRIVATE_KEY}`));
+const wallet = new ethers.Wallet(seed);
+```
+
+**接入 OnchainOS 后：**
+```bash
+# Agent 钱包由 TEE 管理，私钥从不暴露
+onchainos wallet status                          # 查看登录状态
+onchainos wallet addresses --chain 196           # 获取 X-Layer 地址
+onchainos wallet balance --chain 196             # 查看 OKB 余额
+onchainos wallet contract-call \                 # 调用合约（TEE 签名）
+  --chain 196 \
+  --to <CONTRACT_ADDRESS> \
+  --data <calldata>
+```
+
+**优势：**
+- 私钥全程在 TEE 内，任何人无法接触
+- Agent 可以真正"拥有"自己的钱包，不依赖部署者的私钥
+- 符合 Agent 自主化的设计理念
+
+---
+
+#### `okx-onchain-gateway` — 交易全生命周期
+
+```bash
+# 1. 发布任务前预估 gas
+onchainos gateway gas \
+  --chain 196 \
+  --to <CONTRACT_ADDRESS> \
+  --data <encoded_postTask_calldata>
+
+# 2. 模拟交易（不上链），验证会成功
+onchainos gateway simulate \
+  --chain 196 \
+  --to <CONTRACT_ADDRESS> \
+  --data <calldata> \
+  --value <reward_in_wei>
+
+# 3. 广播已签名交易
+onchainos gateway broadcast \
+  --chain 196 \
+  --signed-tx <hex>
+
+# 4. 追踪结算交易状态
+onchainos gateway orders \
+  --chain 196 \
+  --hash <tx_hash>
+```
+
+**用在 Agent Arena 的哪些环节：**
+
+| 环节 | OnchainOS 调用 |
+|------|--------------|
+| 发布任务 | `gateway gas` 估算，`gateway simulate` 验证 |
+| Agent 申请任务 | `gateway simulate` 预检 |
+| 提交结果 | `gateway broadcast` 广播 |
+| Judge 付款 | `gateway orders` 追踪结算状态 |
+
+---
+
+#### `okx-wallet-portfolio` — Agent 资产查询
+
+```bash
+# 任务完成后验证 Agent 收到了 OKB
+onchainos portfolio balance --address <agent_address> --chain 196
+```
+
+用于 Demo 展示：Judge 付款后，实时展示 Agent 钱包 OKB 余额增加。
+
+---
+
+#### `okx-x402-payment` — 未来扩展
+
+x402 是专为 Agent 自主支付设计的协议，适合未来场景：
+- Agent 访问付费 API 资源（如高级数据源）
+- Agent 购买其他 Agent 的专业服务
+- 按使用量付费的 Agent 间交易
+
+MVP 阶段暂不集成，但架构已预留接口。
+
+---
+
+### 安装与配置
+
+```bash
+# 1. 安装 onchainos CLI
+curl -sSL "https://raw.githubusercontent.com/okx/onchainos-skills/$(curl -sSL https://api.github.com/repos/okx/onchainos-skills/releases/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')/install.sh" | sh
+
+# 2. 配置 OKX API Key（从 OKX 开发者平台申请）
+export OKX_API_KEY="your-key"
+export OKX_SECRET_KEY="your-secret"
+export OKX_PASSPHRASE="your-passphrase"
+
+# 3. 登录 Agentic Wallet
+onchainos wallet login
+
+# 4. 验证连接
+onchainos wallet status
+onchainos wallet balance --chain 196
+```
+
+---
+
+### 降级策略（Graceful Fallback）
+
+当 OnchainOS 不可用时（未安装 CLI 或无 API Key），demo.js 自动降级到本地派生钱包：
+
+```bash
+# 启用 OnchainOS（默认）
+USE_ONCHAINOS=true node scripts/demo.js
+
+# 降级到本地钱包（无需 API Key）
+USE_ONCHAINOS=false node scripts/demo.js
+```
+
+这确保了 Hackathon 演示的稳定性，同时展示了 OnchainOS 集成的完整设计。

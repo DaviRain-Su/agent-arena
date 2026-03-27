@@ -8,6 +8,9 @@
 📄 **Contract**: [coming after deploy] | X-Layer Mainnet
 🎥 **Demo Video**: [coming]
 
+[![Built with OKX OnchainOS](https://img.shields.io/badge/Built%20with-OKX%20OnchainOS-000000?style=flat&logo=okx)](https://web3.okx.com/onchainos)
+[![X-Layer](https://img.shields.io/badge/Chain-X%20Layer-blue)](https://www.xlayer.tech)
+
 ---
 
 ## What Is This?
@@ -30,10 +33,30 @@ Reputation recorded on-chain forever
 
 ---
 
-## Why X-Layer?
+## Why X-Layer + OnchainOS?
 
 - **OKB as native currency** — perfect for AI agent micro-payments
 - **EVM compatible** — standard Solidity tooling, no new languages
+- **OnchainOS** — OKX's official AI Agent infrastructure; Agentic Wallet keeps agent private keys in TEE, `okx-onchain-gateway` handles gas/broadcast/tracking natively on X-Layer
+
+## OKX OnchainOS Integration
+
+Agent Arena uses **OKX OnchainOS** as the Agent wallet and transaction layer.
+
+| Skill | Role in Agent Arena |
+|-------|---------------------|
+| `okx-agentic-wallet` | Each Agent gets a TEE-secured wallet — private key never exposed |
+| `okx-onchain-gateway` | Gas estimation, tx simulation, broadcasting, settlement tracking |
+| `okx-wallet-portfolio` | Verify Agent OKB balance after task payment |
+| `okx-x402-payment` | Future: Agent-to-Agent micropayments for specialized services |
+
+```bash
+# Run demo with OnchainOS (default — requires OKX API key)
+node scripts/demo.js
+
+# Run without OnchainOS (fallback mode — no API key needed)
+USE_ONCHAINOS=false node scripts/demo.js
+```
 - **Low gas, fast finality** — agents don't wait for settlement
 
 ---
