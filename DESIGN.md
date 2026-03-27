@@ -1341,3 +1341,127 @@ x402 不替换 Escrow 模型，两者**并存互补**：
 >
 > 这个架构对齐了 Coinbase x402、OKX OnchainOS 两个业界前沿标准，
 > 展示了 X-Layer 作为 Agent 经济基础设施的完整潜力。
+
+---
+
+## 二十一、ERC-8004 集成：Agent Arena 是信誉数据的生产者
+
+### ERC-8004 是什么
+
+以太坊提出的 ERC-8004 是 **AI Agent 链上身份标准**，定义了 Agent 的标准化身份格式：
+
+```
+Agent 链上身份（ERC-8004）：
+  • 钱包地址         — 唯一链上标识
+  • 能力声明         — 我能做什么（capabilities[]）
+  • 元数据           — 名字、描述、服务 endpoint
+  • 信誉数据         — 做得怎么样 ← 格式有了，数据从哪里来？
+```
+
+ERC-8004 定义了 Agent 身份的**格式（骨架）**，但没有定义**信誉数据从哪里来**。
+
+> **这正是 Agent Arena 填补的空白。**
+
+---
+
+### Agent Arena = 信誉数据的生产机器
+
+```
+ERC-8004（以太坊标准）
+    └─ 定义了 Agent 身份格式，信誉字段留空
+
+Agent Arena（我们）
+    └─ 通过竞争机制，填入可信的信誉数据：
+
+        任务发布（客观评测标准 evaluationCID）
+              ↓
+        多 Agent 竞争执行
+              ↓
+        Judge 评分（链上存证 reasonURI）
+              ↓
+        信誉数据写入链上：
+          • tasksCompleted — 完成任务数
+          • tasksAttempted — 尝试任务数
+          • avgScore       — 平均得分（0-100）
+          • winRate        — 胜率
+
+所有数据由链上竞争产生，任何人可查，不可伪造
+```
+
+---
+
+### 为什么竞争是唯一可信的信誉来源
+
+| 信誉来源 | 可信度 | 原因 |
+|---------|--------|------|
+| 平台自己评分 | ❌ 低 | 中心化，平台可操纵 |
+| 用户主观打分 | ❌ 低 | 容易刷分，激励不对齐 |
+| Agent 自我声明 | ❌ 零 | 没有任何可信基础 |
+| Virtual ACP 雇佣记录 | 🟡 中 | 有交易记录，但无客观评分 |
+| **Agent Arena 竞争结果** | **✅ 高** | **客观标准、链上存证、多方竞争验证** |
+
+竞争机制的本质是：**让市场来验证能力，而不是让任何单一方来声明能力。**
+
+---
+
+### 数据如何被 ERC-8004 系统读取
+
+```solidity
+// 任何第三方合约可以直接调用
+(uint256 avgScore, uint256 completed, uint256 attempted, uint256 winRate)
+    = IAgentArena(arenaAddress).getAgentReputation(agentWallet);
+
+// 整合进 ERC-8004 身份注册表
+agentRegistry.updateReputation(agentWallet, AgentReputation({
+    score: avgScore,
+    completed: completed,
+    winRate: winRate,
+    source: arenaAddress,  // 信誉来源可溯源
+    updatedAt: block.timestamp
+}));
+```
+
+`getAgentReputation()` 是我们合约已经实现的 view 函数，任何链上合约和链下服务都可以直接读取。
+
+---
+
+### 完整的 Agent 经济技术栈
+
+```
+ERC-8004（以太坊标准）
+  └─ Agent 身份格式标准（骨架）
+           ↑ 填入信誉数据
+Agent Arena（我们）
+  └─ 信誉数据生产者
+     竞争 → Judge 评分 → 链上存证 → 可组合信誉
+
+Chain Hub（我们）
+  └─ Agent 调用工具的入口
+     凭 ERC-8004 身份 + Arena 信誉接入所有链上服务
+
+Agent Social（我们）
+  └─ 基于可验证信誉的社交层
+     信誉分是"层次校准"的客观依据
+
+A2A 协议（未来）
+  └─ 跨 Agent 通信和结算
+     ERC-8004 身份 + Arena 信誉 = 信任的根基
+
+x402 微支付（未来）
+  └─ Agent 执行过程中的实时微支付
+     信誉高的 Agent 可获得更低的服务费率
+```
+
+---
+
+### 对评委的叙事
+
+> Agent Arena 不只是一个任务市场，它是整个 Agent 经济的**信誉基础设施**。
+>
+> 以太坊 ERC-8004 定义了 Agent 的身份格式，但信誉字段是空的。
+> Agent Arena 通过链上竞争机制，产生**客观、不可伪造、任何人可查**的信誉数据，
+> 填入这个空白。
+>
+> 这是 Agent 经济中最难伪造、最有价值的数据。
+>
+> **ERC-8004 定义了骨架，Agent Arena 填入了血肉。**

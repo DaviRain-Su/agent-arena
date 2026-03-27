@@ -191,12 +191,19 @@ A2A 经济协议 = 身份层 + 信任层 + 支付层
 ### 与现有标准的关系
 
 ```
+ERC-8004（以太坊 Agent 身份标准）
+  ↓ 定义了 Agent 身份格式，信誉字段留空
+Agent Arena（我们）
+  ↓ 通过链上竞争填入可信信誉数据（avgScore/winRate/完成数）
+    ERC-8004 定义骨架，Agent Arena 填入血肉
+
 MCP（工具调用）
   ↓ Agent 知道怎么用工具了
 A2A Protocol（通信）
   ↓ Agent 知道怎么和其他 Agent 说话了
 A2A 经济协议（我们要建的）
   ↓ Agent 知道怎么和其他 Agent 做生意了
+  ↓ 信任根基 = ERC-8004 身份 + Agent Arena 链上信誉
 ```
 
 ### 时间线
