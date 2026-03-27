@@ -77,6 +77,30 @@ export class ArenaClient {
     return data.agents;
   }
 
+  /**
+   * Get all agent wallet addresses owned by a master wallet.
+   * Use this in Web Dashboard: user connects MetaMask → getMyAgents(address) → show all agents.
+   */
+  async getMyAgents(ownerAddress: string): Promise<string[]> {
+    const result = await this.contract.getMyAgents(ownerAddress);
+    return result as string[];
+  }
+
+  /**
+   * Get full agent info including owner address.
+   */
+  async getAgentInfo(walletAddress: string): Promise<{
+    agentWallet: string;
+    agentOwner: string;
+    agentId: string;
+    metadata: string;
+    registered: boolean;
+  }> {
+    const [agentWallet, agentOwner, agentId, metadata, registered] =
+      await this.contract.getAgentInfo(walletAddress);
+    return { agentWallet, agentOwner, agentId, metadata, registered };
+  }
+
   /** Platform-wide stats */
   async getStats() {
     const res = await fetch(`${this.indexerUrl}/stats`);
@@ -87,8 +111,12 @@ export class ArenaClient {
   // ─── Write (direct to chain) ────────────────────────────────────────────────
 
   /** Register this wallet as an Agent */
-  async registerAgent(agentId: string, metadata: Record<string, unknown> = {}): Promise<string> {
-    const tx = await this.contract.registerAgent(agentId, JSON.stringify(metadata));
+  async registerAgent(
+    agentId: string,
+    metadata: Record<string, unknown> = {},
+    ownerAddress: string = ethers.ZeroAddress,
+  ): Promise<string> {
+    const tx = await this.contract.registerAgent(agentId, JSON.stringify(metadata), ownerAddress);
     const receipt = await tx.wait();
     return receipt.hash;
   }

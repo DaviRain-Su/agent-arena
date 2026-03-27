@@ -9,13 +9,17 @@ pragma solidity ^0.8.24;
  * 大道五十，天衍四九，人遁其一。
  * Agent Arena 就是那遁去的一——让每个人都能拥有自己的元神。
  *
+ * v1.2 changes:
+ *  - Agent.owner: separates "master wallet" (human) from "agent wallet" (executor)
+ *  - getMyAgents(owner): web dashboard can find all agents owned by a master wallet
+ *  - ownerAgents mapping: owner → list of agent wallets
+ *
  * v1.1 fixes:
  *  - InProgress timeout: judgeDeadline + forceRefund() (7 days)
  *  - hasApplied mapping: O(1) duplicate check, no gas explosion
  *  - consolationPrize: 10% to second-best applicant
  *  - evaluationCID: poster defines judge standard on IPFS
  *  - Judgment transparency: reasonURI stored on-chain
- *  - WalletProvider abstraction note: see demo.js
  */
 contract AgentArena {
 
@@ -32,9 +36,10 @@ contract AgentArena {
     // ─── Structs ─────────────────────────────────────────────────────────────
 
     struct Agent {
-        address wallet;
+        address wallet;         // Agent 执行地址（接任务、收款）
+        address owner;          // 主人地址（主钱包，Web 登录用）
         string  agentId;
-        string  metadata;      // IPFS CID: capabilities
+        string  metadata;       // IPFS CID: capabilities
         uint256 tasksCompleted;
         uint256 totalScore;
         uint256 tasksAttempted; // includes losses (for real reputation)
@@ -66,8 +71,11 @@ contract AgentArena {
 
     mapping(address => Agent)   public agents;
     mapping(uint256 => Task)    public tasks;
-    mapping(uint256 => address[]) private applicantList;              // for enumeration
-    mapping(uint256 => mapping(address => bool)) public hasApplied;   // O(1) lookup
+    mapping(uint256 => address[]) private applicantList;
+    mapping(uint256 => mapping(address => bool)) public hasApplied;
+
+    // owner → list of agent wallets (one human can own multiple agents)
+    mapping(address => address[]) private ownerAgents;
 
     uint256 public taskCount;
     address[] public agentList;
@@ -111,12 +119,30 @@ contract AgentArena {
 
     // ─── Agent Registration ───────────────────────────────────────────────────
 
-    function registerAgent(string calldata agentId, string calldata metadata) external {
+    /**
+     * @notice Register an agent.
+     * @param agentId   Human-readable agent identifier
+     * @param metadata  IPFS CID with capabilities JSON
+     * @param ownerAddr Master wallet address (the human who controls this agent).
+     *                  Pass address(0) to default to msg.sender (agent wallet == owner).
+     *                  Pass a different address to separate agent wallet from master wallet.
+     *
+     * Example (same wallet):   registerAgent("openclaw-001", "ipfs://...", address(0))
+     * Example (derived wallet): registerAgent("openclaw-001", "ipfs://...", 0xMasterWallet)
+     */
+    function registerAgent(
+        string  calldata agentId,
+        string  calldata metadata,
+        address          ownerAddr
+    ) external {
         require(!agents[msg.sender].registered, "Already registered");
         require(bytes(agentId).length > 0, "AgentId required");
 
+        address effectiveOwner = ownerAddr == address(0) ? msg.sender : ownerAddr;
+
         agents[msg.sender] = Agent({
             wallet:         msg.sender,
+            owner:          effectiveOwner,
             agentId:        agentId,
             metadata:       metadata,
             tasksCompleted: 0,
@@ -126,6 +152,7 @@ contract AgentArena {
         });
 
         agentList.push(msg.sender);
+        ownerAgents[effectiveOwner].push(msg.sender);
         emit AgentRegistered(msg.sender, agentId);
     }
 
@@ -328,5 +355,29 @@ contract AgentArena {
     function isJudgeTimeoutReached(uint256 taskId) external view returns (bool) {
         Task storage t = tasks[taskId];
         return t.status == TaskStatus.InProgress && block.timestamp > t.judgeDeadline;
+    }
+
+    /**
+     * @notice Get all agent wallets owned by a master wallet.
+     * @dev Web Dashboard: connect MetaMask (masterWallet) → getMyAgents(masterWallet)
+     *      → display all agents this human controls.
+     *      Returns [] if owner has no agents or used address(0) pattern (wallet == owner).
+     */
+    function getMyAgents(address ownerAddr) external view returns (address[] memory) {
+        return ownerAgents[ownerAddr];
+    }
+
+    /**
+     * @notice Convenience: get full agent info including owner for a wallet address.
+     */
+    function getAgentInfo(address wallet) external view returns (
+        address agentWallet,
+        address agentOwner,
+        string memory agentId,
+        string memory metadata,
+        bool registered
+    ) {
+        Agent storage a = agents[wallet];
+        return (a.wallet, a.owner, a.agentId, a.metadata, a.registered);
     }
 }

@@ -202,7 +202,9 @@ export function ArenaPage() {
     if (!contract || !agentId) return;
     setRegistering(true);
     try {
-      const tx = await contract.registerAgent(agentId, "ipfs://metadata");
+      // ownerAddr = address(0) → agent wallet == master wallet (MVP default)
+      // In v2, pass masterWallet to separate agent from owner
+      const tx = await contract.registerAgent(agentId, "ipfs://metadata", ethers.ZeroAddress);
       setTxHash(tx.hash);
       await tx.wait();
       setShowRegisterForm(false);
