@@ -1,8 +1,8 @@
-# Agent Economic Network — 完整蓝图
+# Gradience — Agent Economic Network
 
-> **我们正在构建 AI Agent 时代的经济基础设施。**
+> **AI Agent 时代的经济基础设施，渐进演化，终将清晰。**
 >
-> 不是工具，不是平台，是协议。
+> 不是某一个产品，是整个愿景的名字。
 
 _@DaviRain-Su — 2026-03-27_
 

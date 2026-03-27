@@ -1,8 +1,10 @@
-# VISION.md — Agent 经济网络
+# Gradience — Agent Economic Network 愿景文档
 
-> **我们正在构建 AI Agent 时代的经济基础设施。**
+> **AI Agent 时代的经济基础设施，渐进演化，终将清晰。**
 >
-> 不是工具，不是平台，是协议。
+> Gradience 不是某一个产品，是整个愿景的名字。
+> 从一个任务市场，逐渐演化成每个人都有数字分身、
+> Agent 之间能够协作经济交互的世界。
 
 _作者：@DaviRain-Su — 2026-03-27_
 
