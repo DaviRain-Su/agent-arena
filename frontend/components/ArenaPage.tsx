@@ -58,6 +58,15 @@ export function ArenaPage() {
 
   const [txHash, setTxHash] = useState<string | null>(null);
 
+  // My Agent reputation state
+  const [myReputation, setMyReputation] = useState<{
+    avgScore: number;
+    completed: number;
+    attempted: number;
+    winRate: number;
+  } | null>(null);
+  const [myAgentId, setMyAgentId] = useState<string>("");
+
   const getReadContract = useCallback(() => {
     if (!provider) return null;
     return getContract(provider);
@@ -119,10 +128,20 @@ export function ArenaPage() {
       }
       setAgents(await Promise.all(agentPromises));
 
-      // Check if current user is registered
+      // Check if current user is registered + load reputation
       if (address) {
         const myInfo = await contract.agents(address);
         setIsRegistered(myInfo.registered);
+        setMyAgentId(myInfo.agentId || "");
+        if (myInfo.registered) {
+          const rep = await contract.getAgentReputation(address);
+          setMyReputation({
+            avgScore: Number(rep.avgScore),
+            completed: Number(rep.completed),
+            attempted: Number(rep.attempted),
+            winRate: Number(rep.winRate),
+          });
+        }
       }
     } catch (e) {
       console.error("Load failed", e);
@@ -211,6 +230,15 @@ export function ArenaPage() {
 
   const wrongNetwork = isConnected && chainId !== 1952; // X-Layer Testnet
 
+  // 修仙境界 — 信誉等级
+  const realmLabel = (score: number) => {
+    if (score >= 81) return { zh: "化神期", en: "Void Refinement", color: "#f59e0b" };
+    if (score >= 61) return { zh: "元婴期", en: "Nascent Soul",    color: CYAN };
+    if (score >= 41) return { zh: "金丹期", en: "Golden Core",     color: "#10b981" };
+    if (score >= 21) return { zh: "筑基期", en: "Foundation",      color: "#6366f1" };
+    return               { zh: "练气期", en: "Qi Refining",        color: "rgba(255,255,255,0.4)" };
+  };
+
   const statusColor = (status: number) => {
     if (status === 0) return CYAN;
     if (status === 1) return "#f59e0b";
@@ -287,6 +315,137 @@ export function ArenaPage() {
             >
               {txHash.slice(0, 10)}... →
             </a>
+          </div>
+        )}
+
+        {/* ── 我的 Agent 仪表盘 ── */}
+        {isConnected && !wrongNetwork && (
+          <div className="border border-white/10 bg-white/[0.03] p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-medium tracking-widest text-white/60 uppercase">
+                {lang === "en" ? "My Agent Dashboard" : "我的 Agent 仪表盘"}
+              </h2>
+              <span className="text-xs font-mono text-white/30">
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </span>
+            </div>
+
+            {!isRegistered ? (
+              /* 未注册 */
+              <div className="flex items-center justify-between py-4">
+                <div>
+                  <p className="text-white/50 text-sm">
+                    {lang === "en" ? "Your Agent is not registered yet." : "你的 Agent 尚未注册"}
+                  </p>
+                  <p className="text-white/30 text-xs mt-1">
+                    {lang === "en" ? "Register to start competing for tasks" : "注册后即可参与任务竞争，积累链上信誉"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowRegisterForm(true)}
+                  className="px-5 py-2 text-sm border transition font-medium"
+                  style={{ borderColor: CYAN, color: CYAN }}
+                >
+                  {lang === "en" ? "Register Agent" : "凝聚元神"}
+                </button>
+              </div>
+            ) : (
+              /* 已注册 — 信誉仪表盘 */
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                {/* 信誉等级 */}
+                {myReputation && (() => {
+                  const realm = realmLabel(myReputation.avgScore);
+                  return (
+                    <div className="border border-white/10 p-4 bg-white/5 col-span-2 md:col-span-1">
+                      <p className="text-xs text-white/40 mb-2">
+                        {lang === "en" ? "Realm / Score" : "境界 / 信誉"}
+                      </p>
+                      <p className="text-2xl font-light mb-1" style={{ color: realm.color }}>
+                        {lang === "en" ? realm.en : realm.zh}
+                      </p>
+                      <div className="w-full bg-white/10 h-1 mt-2">
+                        <div
+                          className="h-1 transition-all"
+                          style={{ width: `${myReputation.avgScore}%`, background: realm.color }}
+                        />
+                      </div>
+                      <p className="text-xs text-white/30 mt-1">{myReputation.avgScore} / 100</p>
+                    </div>
+                  );
+                })()}
+
+                {/* 完成 / 尝试 */}
+                <div className="border border-white/10 p-4 bg-white/5">
+                  <p className="text-xs text-white/40 mb-2">
+                    {lang === "en" ? "Completed / Tried" : "完成 / 尝试"}
+                  </p>
+                  <p className="text-2xl font-light text-white">
+                    {myReputation?.completed ?? "—"}
+                    <span className="text-white/30 text-sm"> / {myReputation?.attempted ?? "—"}</span>
+                  </p>
+                  <p className="text-xs text-white/30 mt-2">{lang === "en" ? "tasks" : "个任务"}</p>
+                </div>
+
+                {/* 胜率 */}
+                <div className="border border-white/10 p-4 bg-white/5">
+                  <p className="text-xs text-white/40 mb-2">
+                    {lang === "en" ? "Win Rate" : "胜率"}
+                  </p>
+                  <p className="text-2xl font-light" style={{ color: CYAN }}>
+                    {myReputation ? `${myReputation.winRate}%` : "—"}
+                  </p>
+                  <p className="text-xs text-white/30 mt-2">{lang === "en" ? "of competed tasks" : "竞争任务中胜出"}</p>
+                </div>
+
+                {/* Agent ID */}
+                <div className="border border-white/10 p-4 bg-white/5">
+                  <p className="text-xs text-white/40 mb-2">
+                    {lang === "en" ? "Agent ID" : "Agent 身份"}
+                  </p>
+                  <p className="text-sm font-mono text-white truncate">{myAgentId || "—"}</p>
+                  <p className="text-xs mt-2" style={{ color: "#10b981" }}>
+                    🟢 {lang === "en" ? "Registered on-chain" : "已注册上链"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 我参与的任务 */}
+            {isRegistered && (() => {
+              const myTasks = tasks.filter(t =>
+                t.poster.toLowerCase() === address?.toLowerCase() ||
+                t.assignedAgent.toLowerCase() === address?.toLowerCase() ||
+                t.applicants.some(a => a.toLowerCase() === address?.toLowerCase())
+              );
+              if (myTasks.length === 0) return null;
+              return (
+                <div className="mt-5 pt-5 border-t border-white/10">
+                  <p className="text-xs text-white/40 uppercase tracking-widest mb-3">
+                    {lang === "en" ? "My Tasks" : "我的任务"}
+                  </p>
+                  <div className="space-y-2">
+                    {myTasks.slice(0, 5).map(t => {
+                      const isMyTask = t.assignedAgent.toLowerCase() === address?.toLowerCase();
+                      const isPoster = t.poster.toLowerCase() === address?.toLowerCase();
+                      return (
+                        <div key={t.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-white/30 font-mono text-xs">#{t.id}</span>
+                            <span className="text-white/70 truncate max-w-[200px]">{t.description}</span>
+                            {isPoster && <span className="text-xs px-2 py-0.5 border border-white/20 text-white/40">{lang === "en" ? "Posted" : "我发布"}</span>}
+                            {isMyTask && <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${CYAN}50`, color: CYAN }}>{lang === "en" ? "Assigned" : "我执行"}</span>}
+                          </div>
+                          <span className="text-xs" style={{ color: statusColor(t.status) }}>
+                            {lang === "en" ? STATUS_LABELS[t.status] : STATUS_LABELS_ZH[t.status]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
