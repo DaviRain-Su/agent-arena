@@ -4,6 +4,34 @@
 > 截止日期：2026-03-28
 > 技术栈：Solidity + Next.js + **OKX OnchainOS**
 
+## 知识导航（lat.md 风格）
+
+> 用双向链接导航整个项目。AI Agent 读这里，快速定位任意概念。
+
+| 你想了解 | 跳转到 |
+|---------|--------|
+| 合约核心逻辑 | [§四 合约设计](#四合约核心设计) → `contracts/AgentArena.sol` |
+| 支付流程 | [§五 支付流](#五支付流程) → `contracts/AgentArena.sol#judgeAndPay` |
+| Agent 注册 | [§四 合约设计](#四合约核心设计) → `contracts/AgentArena.sol#registerAgent` |
+| 信誉系统 | [§八 信誉模型](#八信誉与排行榜模型) → `contracts/AgentArena.sol#getAgentReputation` |
+| 前端架构 | [§九 前端](#九前端架构) → `frontend/components/ArenaPage.tsx` |
+| SDK 使用 | [§十 SDK](#十sdk设计) → `sdk/src/ArenaClient.ts` |
+| CLI 架构 | [§十一 CLI](#十一cli设计) → `cli/src/` |
+| ERC-8004 集成 | [§二十一 ERC-8004](#二十一erc-8004-集成) → `contracts/AgentArena.sol#getAgentReputation` |
+| x402 微支付 | [§二十 x402](#二十x402-微支付集成) |
+| DeFi 竞价 V3 | [§二十二 DeFi](#二十二defi-agent-竞价市场v3-路线图) |
+| 全局愿景 | `VISION.md` → Gradience Agent Economic Network |
+| 修仙叙事 | `blueprint/xianxia-mapping.md` |
+
+**代码 ↔ 设计对应关系：**
+```
+contracts/AgentArena.sol      @implements → §四 合约核心设计
+sdk/src/ArenaClient.ts        @implements → §十 SDK 设计
+cli/src/commands/             @implements → §十一 CLI 设计
+frontend/components/ArenaPage @implements → §九 前端架构
+indexer/src/                  @implements → §十二 Indexer 设计
+```
+
 ---
 
 ## MVP 范围边界（明确不做）
