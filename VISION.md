@@ -207,6 +207,63 @@ A2A 经济协议（我们要建的）
 - **2027**：A2A 协议 v0.1，基于 Agent Arena 的任务拆分场景开始
 - **2028+**：协议标准化，推动生态
 
+### A2A 协议的第一个杀手级应用：Agent 社交网络
+
+A2A 协议不只是 Agent 之间的经济协作，它还可以解决一个更贴近普通人的问题：**人与人之间的社交层次不对等。**
+
+> **"人和人之间的交流，其实是在不同层次上进行的。先让 Agent 探路，再让人决定要不要深入。"**
+
+```
+人 A（i 人）                         人 B（i 人）
+    │                                    │
+    ▼                                    ▼
+ Agent A                              Agent B
+（了解 A 的偏好、兴趣、表达风格）      （了解 B 的偏好、兴趣、表达风格）
+    │                                    │
+    └──────────── A2A 对话 ─────────────┘
+                  （先探路）
+                      │
+              发现共同话题 / 层次匹配？
+                      │
+           ┌──────────┴──────────┐
+           ▼                     ▼
+      有共鸣                  没共鸣
+  Agent 通知双方主人         礼貌结束
+  → 人类决定是否接上         不浪费任何人时间
+```
+
+**为什么这有价值：**
+
+对 i 人来说，高质量连接需要极高的前期成本（进入一段关系需要大量投入，一旦不合适又很难退出）。Agent 作为中间层，可以：
+- 在不暴露主人隐私的前提下先做"层次校准"
+- 把无效社交的成本降到接近零
+- 只把值得的连接推给主人
+
+**技术实现路径：**
+
+```
+① 身份层（已有）
+   Agent Arena 的 registerAgent(agentId, metadata)
+   metadata 扩展为 Social Profile：
+   {
+     "personality": "direct, async-friendly, no-smalltalk",
+     "interests": ["AI systems", "blockchain", "distributed protocols"],
+     "depth": "deep-dive preferred",
+     "responseTime": "hours, not minutes"
+   }
+
+② 匹配层（新增）
+   Agent A 读取 Agent B 的 profile → LLM 判断层次是否对齐
+   → 生成"连接推荐报告"给各自主人
+
+③ 转述层（新增）
+   Agent 把对方的核心观点、关注重点，
+   用适合主人接受的方式整理呈现
+   → 主人读摘要，决定要不要亲自出面
+```
+
+这个场景将作为独立产品 **Agent Social** 设计，见 [`agent-social/DESIGN.md`](../agent-social/DESIGN.md)。
+
 ---
 
 ## 七、为什么是区块链？
