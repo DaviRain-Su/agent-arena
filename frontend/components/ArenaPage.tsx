@@ -66,9 +66,11 @@ export function ArenaPage() {
   const [judgeAddress, setJudgeAddress] = useState<string>("");
   const [judgeForm, setJudgeForm] = useState<{ taskId: number; score: number } | null>(null);
 
+  // Public RPC fallback — readable even without wallet
   const getReadContract = useCallback(() => {
-    if (!provider) return null;
-    return getContract(provider);
+    if (provider) return getContract(provider);
+    const fallback = new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon");
+    return getContract(fallback);
   }, [provider]);
 
   const getWriteContract = useCallback(() => {
@@ -78,7 +80,6 @@ export function ArenaPage() {
 
   const loadData = useCallback(async () => {
     const contract = getReadContract();
-    if (!contract) return;
     setLoading(true);
     try {
       const taskCount = Number(await contract.taskCount());
@@ -155,8 +156,9 @@ export function ArenaPage() {
     }
   }, [getReadContract, address]);
 
+  // Load on mount (no wallet needed) and re-load when wallet connects
   useEffect(() => {
-    if (provider) loadData();
+    loadData();
   }, [provider, loadData]);
 
   // Real-time event listening — auto-refresh on chain events
