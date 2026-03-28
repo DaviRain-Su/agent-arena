@@ -3,4 +3,7 @@ node_modules/
 artifacts/AgentArena.json
 artifacts/deployment.json
 *.lock
+!**/package-lock.json
 .DS_Store
+data/
+dist/
