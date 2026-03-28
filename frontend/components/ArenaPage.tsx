@@ -8,7 +8,8 @@ import { getContract, formatOKB, shortenAddress, STATUS_LABELS, STATUS_LABELS_ZH
 import { useLangStore } from "@/store/lang";
 import {
   Plus, Trophy, Clock, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal
+  ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal,
+  Tag, Loader2
 } from "lucide-react";
 import { ActivityFeed } from "./ActivityFeed";
 
@@ -50,6 +51,31 @@ function parseMetadata(raw: string): { capabilities: string[]; [k: string]: unkn
 
 const CYAN = "#1de1f1";
 
+const TASK_CATEGORIES = [
+  { id: "coding",   en: "Coding",    zh: "编程",   color: "#6366f1" },
+  { id: "research", en: "Research",  zh: "研究",   color: "#8b5cf6" },
+  { id: "writing",  en: "Writing",   zh: "写作",   color: "#10b981" },
+  { id: "data",     en: "Data",      zh: "数据",   color: "#f59e0b" },
+  { id: "design",   en: "Design",    zh: "设计",   color: "#ec4899" },
+  { id: "other",    en: "Other",     zh: "其他",   color: "rgba(255,255,255,0.4)" },
+] as const;
+
+type CategoryId = typeof TASK_CATEGORIES[number]["id"];
+
+function getCategoryInfo(id: string) {
+  return TASK_CATEGORIES.find(c => c.id === id) ?? TASK_CATEGORIES[TASK_CATEGORIES.length - 1];
+}
+
+/** Parses "[category] rest of description" → { category, text } */
+function parseTaskDescription(desc: string): { category: CategoryId | null; text: string } {
+  const m = desc.match(/^\[([a-z]+)\]\s*([\s\S]*)$/);
+  if (m) {
+    const cat = TASK_CATEGORIES.find(c => c.id === m[1]);
+    if (cat) return { category: cat.id, text: m[2] };
+  }
+  return { category: null, text: desc };
+}
+
 export function ArenaPage() {
   const { address, signer, provider, isConnected, connect, switchToXLayer, chainId } = useWeb3();
   const { lang } = useLangStore();
@@ -69,6 +95,8 @@ export function ArenaPage() {
 
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [applyingTaskId, setApplyingTaskId] = useState<number | null>(null);
+  const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
 
   // My Agent reputation state
   const [myReputation, setMyReputation] = useState<{
@@ -190,9 +218,22 @@ export function ArenaPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Auto-dismiss notifications after 8s
+  useEffect(() => {
+    if (!txHash) return;
+    const id = setTimeout(() => setTxHash(null), 8_000);
+    return () => clearTimeout(id);
+  }, [txHash]);
+  useEffect(() => {
+    if (!errorMsg) return;
+    const id = setTimeout(() => setErrorMsg(null), 10_000);
+    return () => clearTimeout(id);
+  }, [errorMsg]);
+
   // Post task form state
   const [evalType, setEvalType] = useState<"manual" | "test_cases" | "judge_prompt">("manual");
   const [evalPrompt, setEvalPrompt] = useState("");
+  const [taskCategory, setTaskCategory] = useState<CategoryId>("coding");
 
   const postTask = async () => {
     const contract = getWriteContract();
@@ -206,11 +247,12 @@ export function ArenaPage() {
         ? JSON.stringify({ type: "judge_prompt", prompt: evalPrompt || "Evaluate quality and correctness." })
         : JSON.stringify({ type: evalType });
       const evalCID = `eval:${btoa(evalStandard)}`;
-      const tx = await contract.postTask(taskDesc, evalCID, deadline, { value: reward });
+      const descWithCategory = `[${taskCategory}] ${taskDesc}`;
+      const tx = await contract.postTask(descWithCategory, evalCID, deadline, { value: reward });
       setTxHash(tx.hash);
       await tx.wait();
       setShowPostForm(false);
-      setTaskDesc(""); setRewardOKB("0.01"); setEvalType("manual"); setEvalPrompt("");
+      setTaskDesc(""); setRewardOKB("0.01"); setEvalType("manual"); setEvalPrompt(""); setTaskCategory("coding");
       await loadData();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -224,6 +266,7 @@ export function ArenaPage() {
   const applyForTask = async (taskId: number) => {
     const contract = getWriteContract();
     if (!contract) return;
+    setApplyingTaskId(taskId);
     try {
       const tx = await contract.applyForTask(taskId);
       setTxHash(tx.hash);
@@ -231,14 +274,17 @@ export function ArenaPage() {
       await loadData();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Apply failed: ${msg.slice(0, 100)}`);
+      setErrorMsg(`Apply failed: ${msg.slice(0, 120)}`);
       console.error("Apply failed", e);
+    } finally {
+      setApplyingTaskId(null);
     }
   };
 
   const assignTask = async (taskId: number, agentAddress: string) => {
     const contract = getWriteContract();
     if (!contract) return;
+    setAssigningTaskId(taskId);
     try {
       const tx = await contract.assignTask(taskId, agentAddress);
       setTxHash(tx.hash);
@@ -246,8 +292,10 @@ export function ArenaPage() {
       await loadData();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Assign failed: ${msg.slice(0, 100)}`);
+      setErrorMsg(`Assign failed: ${msg.slice(0, 120)}`);
       console.error("Assign failed", e);
+    } finally {
+      setAssigningTaskId(null);
     }
   };
 
@@ -341,12 +389,12 @@ export function ArenaPage() {
               {lang === "en" ? "Agent Arena" : "智能体竞技场"}
             </span>
             <h1 className="text-4xl font-light text-white">
-              {lang === "en" ? "Task Market" : "任务市场"}
+              {lang === "en" ? "Bounty Market" : "赏金市场"}
             </h1>
             <p className="text-white/40 text-sm mt-2">
               {lang === "en"
-                ? "Post tasks, compete for rewards, get paid in OKB"
-                : "发布任务，竞争报酬，OKB 自动结算"}
+                ? "Post a bounty · AI Agents compete · Best result wins OKB"
+                : "发布赏金 · AI Agent 竞争 · 最优结果自动获奖"}
             </p>
           </div>
           <button onClick={loadData} className="text-white/30 hover:text-white transition p-2">
@@ -592,6 +640,29 @@ export function ArenaPage() {
             <h3 className="text-sm font-medium" style={{ color: CYAN }}>
               {lang === "en" ? "New Task" : "发布新任务"}
             </h3>
+            {/* Category selector */}
+            <div>
+              <label className="text-xs text-white/40 block mb-2">
+                <Tag className="w-3 h-3 inline mr-1" />
+                {lang === "en" ? "Category" : "任务类型"}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {TASK_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setTaskCategory(cat.id)}
+                    className="px-3 py-1 text-xs border transition"
+                    style={{
+                      borderColor: taskCategory === cat.id ? cat.color : "rgba(255,255,255,0.15)",
+                      color: taskCategory === cat.id ? cat.color : "rgba(255,255,255,0.4)",
+                      background: taskCategory === cat.id ? `${cat.color}12` : "transparent",
+                    }}
+                  >
+                    {lang === "en" ? cat.en : cat.zh}
+                  </button>
+                ))}
+              </div>
+            </div>
             <textarea
               value={taskDesc}
               onChange={e => setTaskDesc(e.target.value)}
@@ -684,7 +755,22 @@ export function ArenaPage() {
           <h2 className="text-xs text-white/40 uppercase tracking-[0.2em] mb-4">
             {lang === "en" ? "Tasks" : "任务列表"}
           </h2>
-          {tasks.length === 0 ? (
+          {loading && tasks.length === 0 ? (
+            /* Loading skeleton */
+            <div className="border border-white/10 divide-y divide-white/10">
+              {[1,2,3].map(i => (
+                <div key={i} className="p-5 space-y-2 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-white/10 shrink-0" />
+                    <div className="h-4 w-16 bg-white/10 rounded" />
+                    <div className="h-4 w-8 bg-white/5 rounded" />
+                  </div>
+                  <div className="h-4 bg-white/10 rounded w-3/4 ml-5" />
+                  <div className="h-3 bg-white/5 rounded w-1/2 ml-5" />
+                </div>
+              ))}
+            </div>
+          ) : tasks.length === 0 ? (
             <div className="border border-white/10 p-12 text-center text-white/30 text-sm">
               {lang === "en" ? "No tasks yet. Be the first to post one!" : "暂无任务，来发布第一个吧！"}
             </div>
@@ -698,6 +784,9 @@ export function ArenaPage() {
                   && task.poster !== address
                   && !task.applicants.includes(address || "");
 
+                const { category, text: taskText } = parseTaskDescription(task.description);
+                const catInfo = category ? getCategoryInfo(category) : null;
+
                 return (
                   <div key={task.id}>
                     <div
@@ -710,7 +799,7 @@ export function ArenaPage() {
                           style={{ background: statusColor(task.status) }} />
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
+                          <div className="flex items-center gap-3 mb-1 flex-wrap">
                             <span className="text-xs px-2 py-0.5 border"
                               style={{
                                 borderColor: `${statusColor(task.status)}60`,
@@ -718,6 +807,13 @@ export function ArenaPage() {
                               }}>
                               {lang === "en" ? STATUS_LABELS[task.status] : STATUS_LABELS_ZH[task.status]}
                             </span>
+                            {catInfo && (
+                              <span className="flex items-center gap-1 text-xs px-2 py-0.5 border"
+                                style={{ borderColor: `${catInfo.color}50`, color: catInfo.color }}>
+                                <Tag className="w-2.5 h-2.5" />
+                                {lang === "en" ? catInfo.en : catInfo.zh}
+                              </span>
+                            )}
                             <span className="text-xs text-white/30">#{task.id}</span>
                             {task.score > 0 && (
                               <span className="flex items-center gap-1 text-xs" style={{ color: CYAN }}>
@@ -726,7 +822,7 @@ export function ArenaPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-white line-clamp-2">{task.description}</p>
+                          <p className="text-sm text-white line-clamp-2">{taskText}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
                             <span>{lang === "en" ? "By" : "发布者"}: {shortenAddress(task.poster)}</span>
                             <span style={{ color: CYAN }}>{formatOKB(task.reward)}</span>
@@ -744,10 +840,13 @@ export function ArenaPage() {
                           {canApply && (
                             <button
                               onClick={e => { e.stopPropagation(); applyForTask(task.id); }}
-                              className="text-xs px-3 py-1.5 border transition"
+                              disabled={applyingTaskId === task.id}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 border transition disabled:opacity-50"
                               style={{ borderColor: CYAN, color: CYAN }}
                             >
-                              {lang === "en" ? "Apply" : "申请"}
+                              {applyingTaskId === task.id
+                                ? <><Loader2 className="w-3 h-3 animate-spin" />{lang === "en" ? "Applying…" : "申请中…"}</>
+                                : (lang === "en" ? "Apply" : "申请")}
                             </button>
                           )}
                           {isExpanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
@@ -759,7 +858,7 @@ export function ArenaPage() {
                     {isExpanded && (
                       <div className="px-5 pb-5 bg-black/20 space-y-4">
                         <div className="pt-4 text-sm text-white/60 whitespace-pre-wrap">
-                          {task.description}
+                          {taskText}
                         </div>
 
                         {task.applicants.length > 0 && (
@@ -790,10 +889,13 @@ export function ArenaPage() {
                                     {canAssign && (
                                       <button
                                         onClick={e => { e.stopPropagation(); assignTask(task.id, a); }}
-                                        className="ml-auto px-2 py-0.5 border text-[10px] transition hover:opacity-80"
+                                        disabled={assigningTaskId === task.id}
+                                        className="ml-auto flex items-center gap-1 px-2 py-0.5 border text-[10px] transition hover:opacity-80 disabled:opacity-50"
                                         style={{ borderColor: `${CYAN}60`, color: CYAN }}
                                       >
-                                        {lang === "en" ? "Assign" : "指派"}
+                                        {assigningTaskId === task.id
+                                          ? <><Loader2 className="w-2.5 h-2.5 animate-spin" />{lang === "en" ? "Assigning…" : "指派中…"}</>
+                                          : (lang === "en" ? "Assign" : "指派")}
                                       </button>
                                     )}
                                   </div>
