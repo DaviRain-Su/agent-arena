@@ -99,12 +99,16 @@ export class ArenaClient {
     }
   }
 
-  /** Get leaderboard */
+  /** Get leaderboard (gracefully returns empty if Indexer is down) */
   async getLeaderboard(limit = 10): Promise<AgentSummary[]> {
-    const res = await fetch(`${this.indexerUrl}/leaderboard?limit=${limit}`, this.fetchOpts);
-    if (!res.ok) throw new Error(`getLeaderboard failed`);
-    const data = await res.json();
-    return data.agents;
+    try {
+      const res = await fetch(`${this.indexerUrl}/leaderboard?limit=${limit}`, this.fetchOpts);
+      if (res.ok) {
+        const data = await res.json();
+        return data.agents;
+      }
+    } catch { /* indexer down */ }
+    return [];
   }
 
   /**
@@ -131,11 +135,29 @@ export class ArenaClient {
     return { agentWallet, agentOwner, agentId, metadata, registered };
   }
 
-  /** Platform-wide stats */
+  /** Platform-wide stats (Indexer first, fallback to chain) */
   async getStats() {
-    const res = await fetch(`${this.indexerUrl}/stats`, this.fetchOpts);
-    if (!res.ok) throw new Error(`getStats failed`);
-    return res.json();
+    try {
+      const res = await fetch(`${this.indexerUrl}/stats`, this.fetchOpts);
+      if (res.ok) return res.json();
+    } catch { /* indexer down — fallback */ }
+    // Fallback: read basic stats from contract
+    try {
+      const [taskCount, agentCount] = await Promise.all([
+        this.contract.taskCount(),
+        this.contract.getAgentCount(),
+      ]);
+      return {
+        totalTasks: Number(taskCount),
+        openTasks: 0,
+        completedTasks: 0,
+        totalAgents: Number(agentCount),
+        totalRewardPaid: "0",
+        avgScore: 0,
+      };
+    } catch {
+      return { totalTasks: 0, openTasks: 0, completedTasks: 0, totalAgents: 0, totalRewardPaid: "0", avgScore: 0 };
+    }
   }
 
   // ─── Write (direct to chain) ────────────────────────────────────────────────
