@@ -1,27 +1,29 @@
-# Agent Arena Judge Service - Docker Image
 FROM node:20-alpine
 
-# Install system dependencies for vm2 sandbox
-RUN apk add --no-cache python3 make g++
-
-# Create app directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy sandbox package first (local dependency)
+COPY sandbox/ ./sandbox/
+
+# Copy judge service package files
+COPY services/judge/package*.json ./
+
+# Rewrite local dep path for Docker context
+RUN sed -i 's|file:../../sandbox|file:./sandbox|g' package.json
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
-# Copy built application
-COPY dist/ ./dist/
+# Copy built judge service
+COPY services/judge/dist/ ./dist/
 
-# Create state directory
+# Copy ABI
+COPY services/judge/src/abi.ts ./src/abi.ts
+
+# State directory
 RUN mkdir -p /root/.arena
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD node -e "console.log('healthy')" || exit 1
 
-# Start the service
 CMD ["node", "dist/index.js"]
