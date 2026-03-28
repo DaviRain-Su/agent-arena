@@ -13,3 +13,9 @@ indexer/**/Cargo.lock
 .gstack/
 indexer/local/data/
 cli/package-lock.json
+check_address.js
+cli/.env.multi
+test_local_integration.sh
+debug_local.sh
+quick_test.sh
+test_task_fib.json

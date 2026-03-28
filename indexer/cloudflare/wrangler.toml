@@ -18,9 +18,10 @@ crons = ["*/1 * * * *"]
 # Or use [vars] for non-sensitive values
 
 [vars]
+CONTRACT_ADDRESS = "0x964441A7f7B7E74291C05e66cb98C462c4599381"
 XLAYER_RPC = "https://rpc.xlayer.tech"
 XLAYER_RPC_FALLBACK = "https://rpc.xlayer.tech"
-SYNC_BATCH_SIZE = "200"   # blocks per cron run (keep under 50ms CPU limit)
+SYNC_BATCH_SIZE = "50"    # blocks per eth_getLogs call (X-Layer limits to 100)
 
 # For production mainnet:
 # XLAYER_RPC = "https://rpc.xlayer.tech"

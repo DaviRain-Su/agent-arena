@@ -204,19 +204,23 @@ async function getLogs(rpcUrl: string, contractAddr: string, fromBlock: number, 
 export async function syncEvents(env: Env): Promise<{ synced: number; newBlock: number }> {
   const rpcUrl    = env.XLAYER_RPC;
   const contract  = env.CONTRACT_ADDRESS;
-  const batchSize = parseInt(env.SYNC_BATCH_SIZE || "200");
+  const batchSize = parseInt(env.SYNC_BATCH_SIZE || "50");
+  const MAX_BATCHES = 20; // Process up to 20 batches per cron (20 * 50 = 1000 blocks)
 
   const currentBlock = await getBlockNumber(rpcUrl);
-  const lastBlock    = await getLastBlock(env.DB);
-  const fromBlock    = lastBlock === 0 ? Math.max(0, currentBlock - 5000) : lastBlock + 1;
+  let lastBlock    = await getLastBlock(env.DB);
+  let fromBlock    = lastBlock === 0 ? Math.max(0, currentBlock - 5000) : lastBlock + 1;
 
   if (fromBlock > currentBlock) {
     console.log(`[sync] Already up to date at block ${currentBlock}`);
     return { synced: 0, newBlock: currentBlock };
   }
 
+  let totalSynced = 0;
+
+  for (let batch = 0; batch < MAX_BATCHES && fromBlock <= currentBlock; batch++) {
   const toBlock = Math.min(fromBlock + batchSize - 1, currentBlock);
-  console.log(`[sync] Processing blocks ${fromBlock} → ${toBlock}`);
+  console.log(`[sync] Batch ${batch + 1}: blocks ${fromBlock} → ${toBlock}`);
 
   let synced = 0;
 
@@ -306,11 +310,18 @@ export async function syncEvents(env: Env): Promise<{ synced: number; newBlock: 
     }
 
     await setLastBlock(env.DB, toBlock);
-    console.log(`[sync] Done. Processed ${synced} logs, ${taskIds.size} tasks, ${agentAddrs.size} agents`);
-    return { synced, newBlock: toBlock };
+    totalSynced += synced;
+    console.log(`[sync] Batch done. ${synced} logs, ${taskIds.size} tasks, ${agentAddrs.size} agents`);
+
+    fromBlock = toBlock + 1;
+    lastBlock = toBlock;
 
   } catch (e) {
     console.error("[sync] Error:", e);
-    return { synced: 0, newBlock: lastBlock };
+    return { synced: totalSynced, newBlock: lastBlock };
   }
+  } // end batch loop
+
+  console.log(`[sync] All batches done. Total ${totalSynced} events synced to block ${lastBlock}`);
+  return { synced: totalSynced, newBlock: lastBlock };
 }
