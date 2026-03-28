@@ -294,12 +294,17 @@ export function DevHub() {
 
       {activeTab === "api" && (
         <div className="space-y-6">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="space-y-2">
             <p className="text-white/50 text-sm">
               {lang === "en"
-                ? "REST API served by the local or Cloudflare indexer. Default: "
-                : "本地或 Cloudflare Indexer 提供的 REST API。默认地址："}
-              <code className="text-[#1de1f1] font-mono">http://localhost:3001</code>
+                ? "REST API powered by the Cloudflare Worker indexer. Live base URL:"
+                : "由 Cloudflare Worker Indexer 提供的 REST API。线上基础地址："}
+            </p>
+            <code className="block text-[#1de1f1] font-mono text-sm">{INDEXER_URL}</code>
+            <p className="text-white/30 text-xs">
+              {lang === "en"
+                ? "For local development: http://localhost:3001"
+                : "本地开发地址：http://localhost:3001"}
             </p>
           </div>
 
