@@ -51,12 +51,15 @@ export function ActivityFeed() {
       "ResultSubmitted", "TaskCompleted", "TaskRefunded", "ForceRefunded", "ConsolationPaid",
     ];
 
-    // Load recent events (last ~500 blocks)
+    // Load recent events (last ~5000 blocks ≈ ~4 hours on X-Layer testnet)
     (async () => {
       try {
         const currentBlock = await rpc.getBlockNumber();
-        const fromBlock = Math.max(0, currentBlock - 500);
+        const fromBlock = Math.max(0, currentBlock - 5000);
         const allEvents: ArenaEvent[] = [];
+
+        // Fetch block timestamps in parallel after collecting logs
+        const blockTimestamps = new Map<number, number>();
 
         for (const name of eventNames) {
           const filter = contract.filters[name]();
@@ -74,9 +77,21 @@ export function ActivityFeed() {
               detail: formatDetail(parsed.name, parsed.args),
               blockNumber: log.blockNumber,
               txHash: log.transactionHash,
-              timestamp: Date.now(),
+              timestamp: 0, // filled below
             });
+            blockTimestamps.set(log.blockNumber, 0);
           }
+        }
+
+        // Fetch unique block timestamps in parallel
+        const uniqueBlocks = Array.from(blockTimestamps.keys());
+        await Promise.all(uniqueBlocks.map(async (bn) => {
+          const block = await rpc.getBlock(bn);
+          if (block) blockTimestamps.set(bn, block.timestamp * 1000);
+        }));
+
+        for (const evt of allEvents) {
+          evt.timestamp = blockTimestamps.get(evt.blockNumber) || Date.now();
         }
 
         allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
@@ -94,17 +109,21 @@ export function ActivityFeed() {
         const meta = eventMeta(name);
         const parsed = contract.interface.parseLog({ topics: event.topics as string[], data: event.data });
         if (!parsed) return;
-        setEvents(prev => [{
-          id: `${event.transactionHash}-${event.index}-${Date.now()}`,
-          type: name,
-          icon: meta.icon,
-          color: meta.color,
-          title: formatTitle(name, parsed.args, lang),
-          detail: formatDetail(name, parsed.args),
-          blockNumber: event.blockNumber,
-          txHash: event.transactionHash,
-          timestamp: Date.now(),
-        }, ...prev].slice(0, MAX_EVENTS));
+        // Fetch block timestamp asynchronously, then update the event
+        rpc.getBlock(event.blockNumber).then(block => {
+          const ts = block ? block.timestamp * 1000 : Date.now();
+          setEvents(prev => [{
+            id: `${event.transactionHash}-${event.index}`,
+            type: name,
+            icon: meta.icon,
+            color: meta.color,
+            title: formatTitle(name, parsed.args, lang),
+            detail: formatDetail(name, parsed.args),
+            blockNumber: event.blockNumber,
+            txHash: event.transactionHash,
+            timestamp: ts,
+          }, ...prev].slice(0, MAX_EVENTS));
+        });
       };
       contract.on(name, handler);
       handlers.push({ name, handler });

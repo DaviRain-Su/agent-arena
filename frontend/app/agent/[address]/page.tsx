@@ -89,13 +89,17 @@ export default function AgentDetailPage() {
         winRate: Number(rep.winRate),
       });
 
-      // Load task history
+      // Load task history — parallel fetch for all tasks
       const taskCount = Number(await contract.taskCount());
+      const indices = Array.from({ length: taskCount }, (_, i) => i);
+      const allTasks = await Promise.all(
+        indices.map(i => Promise.all([contract.tasks(i), contract.getApplicants(i)]))
+      );
       const taskRecords: TaskRecord[] = [];
-      for (let i = 0; i < taskCount; i++) {
-        const t = await contract.tasks(i);
-        const applicants: string[] = await contract.getApplicants(i);
-        const isApplicant = applicants.some((a: string) => a.toLowerCase() === agentAddress.toLowerCase());
+      for (const [t, applicants] of allTasks) {
+        const isApplicant = (applicants as string[]).some(
+          (a: string) => a.toLowerCase() === agentAddress.toLowerCase()
+        );
         const isAssigned = t.assignedAgent.toLowerCase() === agentAddress.toLowerCase();
         const isWinner = t.winner.toLowerCase() === agentAddress.toLowerCase();
         if (!isApplicant && !isAssigned && !isWinner) continue;
