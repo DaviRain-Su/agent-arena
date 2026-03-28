@@ -18,7 +18,9 @@ function loadABI(): unknown[] {
 
 function getProvider(): ethers.JsonRpcProvider {
   const rpcUrl = config.get("rpcUrl") || "https://testrpc.xlayer.tech/terigon";
-  return new ethers.JsonRpcProvider(rpcUrl);
+  // staticNetwork avoids extra eth_chainId call on every RPC request
+  const chainId = rpcUrl.includes("testrpc") ? 195 : 196;
+  return new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true });
 }
 
 function validateConfig() {

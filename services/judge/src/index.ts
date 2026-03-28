@@ -103,7 +103,10 @@ class JudgeService {
   private inProgressTasks = new Set<number>();
 
   constructor() {
-    this.provider = new ethers.JsonRpcProvider(RPC_URL);
+    // Use staticNetwork to skip eth_chainId on every call — reduces RPC load
+    // and avoids "socket hang up" from the extra request
+    const chainId = RPC_URL.includes("testrpc") ? 195 : 196;
+    this.provider = new ethers.JsonRpcProvider(RPC_URL, chainId, { staticNetwork: true });
     this.signer = new ethers.Wallet(PRIVATE_KEY!, this.provider);
     this.contract = new ethers.Contract(CONTRACT_ADDRESS, AGENT_ARENA_ABI, this.signer);
   }
@@ -643,15 +646,15 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function withRetry<T>(fn: () => Promise<T>, label: string, retries = 3): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, label: string, retries = 4): Promise<T> {
   for (let i = 0; i < retries; i++) {
     try {
       return await fn();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isTransient = /socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|network|timeout|fetch failed/i.test(msg);
+      const isTransient = /socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|network|timeout|fetch failed|SERVER_ERROR|NETWORK_ERROR/i.test(msg);
       if (!isTransient || i === retries - 1) throw e;
-      const delay = 2000 * (i + 1);
+      const delay = 3000 * (i + 1); // 3s, 6s, 9s
       console.warn(`   ⚠️  ${label} failed (attempt ${i + 1}/${retries}): ${msg.slice(0, 60)}, retry in ${delay / 1000}s`);
       await sleep(delay);
     }
