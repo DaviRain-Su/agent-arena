@@ -14,7 +14,8 @@ import { createRequire } from "module";
 import { createHash } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
-import vm from "vm";
+
+import { NodeVMProvider, runTests, calcScore } from "../sandbox/dist/index.js";
 
 const require = createRequire(import.meta.url);
 require("dotenv").config();
@@ -138,45 +139,16 @@ function sep(title = "", color = c.cyan) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function deepEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
+// ─── Sandbox-based Test Execution ─────────────────────────────────────────────
+// Uses @agent-arena/sandbox (NodeVMProvider now, Sandbank DaytonaAdapter in V2)
+const sandboxProvider = new NodeVMProvider();
 
-// ─── Real Test Execution ──────────────────────────────────────────────────────
-function runTestCases(agentCode) {
-  const results = [];
-  for (const tc of TEST_CASES) {
-    try {
-      // Run agent code in a sandboxed VM context
-      const sandbox = { result: undefined };
-      const script = new vm.Script(`
-        ${agentCode}
-        result = deepMerge(${JSON.stringify(tc.input[0])}, ${JSON.stringify(tc.input[1])});
-      `);
-      script.runInNewContext(sandbox, { timeout: 2000 });
-
-      const passed = deepEqual(sandbox.result, tc.expected);
-      results.push({
-        desc: tc.desc,
-        passed,
-        got: sandbox.result,
-        expected: tc.expected
-      });
-    } catch (e) {
-      results.push({
-        desc: tc.desc,
-        passed: false,
-        error: e.message,
-        expected: tc.expected
-      });
-    }
-  }
-  return results;
+async function runTestCases(agentCode) {
+  return runTests(sandboxProvider, agentCode, "deepMerge", TEST_CASES);
 }
 
 function calcTestScore(results) {
-  const passed = results.filter(r => r.passed).length;
-  return Math.round((passed / results.length) * EVALUATION_STANDARD.scoring.test_weight);
+  return calcScore(results, EVALUATION_STANDARD.scoring.test_weight);
 }
 
 // ─── OnchainOS helpers ────────────────────────────────────────────────────────
@@ -346,11 +318,11 @@ async function main() {
   // ── Step 6: Real Test Execution ──────────────────────────────────────────────
   sep("Step 6 — Execute Test Cases (Real Code Runs)");
 
-  const testResults = solutions.map(s => {
-    const results = runTestCases(s.code);
+  const testResults = await Promise.all(solutions.map(async s => {
+    const results = await runTestCases(s.code);
     const testScore = calcTestScore(results);
     return { ...s, testResults: results, testScore };
-  });
+  }));
 
   for (const s of testResults) {
     const cfg = s.cfg;

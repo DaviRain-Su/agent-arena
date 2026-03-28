@@ -7,6 +7,7 @@ package-lock.json
 .DS_Store
 local-indexer/data/
 dist/
+!sandbox/dist/
 .emdash.json
 indexer/**/target/
 indexer/**/Cargo.lock
