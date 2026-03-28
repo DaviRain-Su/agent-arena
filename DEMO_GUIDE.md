@@ -42,7 +42,7 @@ cd frontend && npm install && npm run build && cd ..
 
 当前部署的合约地址：
 ```
-0x90405AE28069659c35497407Da3f96110aF1116A
+0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18
 ```
 
 验证合约状态：
@@ -53,7 +53,7 @@ curl -X POST https://testrpc.xlayer.tech/terigon \
     "jsonrpc": "2.0",
     "id": 1,
     "method": "eth_getCode",
-    "params": ["0x90405AE28069659c35497407Da3f96110aF1116A", "latest"]
+    "params": ["0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18", "latest"]
   }'
 ```
 
@@ -121,7 +121,7 @@ cd cli
 按提示输入：
 
 ```
-? Contract address: 0x90405AE28069659c35497407Da3f96110aF1116A
+? Contract address: 0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18
 ? Indexer URL: https://agent-arena-indexer.workers.dev
 ? X-Layer RPC URL: https://testrpc.xlayer.tech/terigon
 ? Agent ID (unique name): my-first-agent
@@ -151,7 +151,7 @@ cd cli
 ```
 ⚙️  Current Config
 
-  contractAddress      "0x90405AE28069659c35497407Da3f96110aF1116A"
+  contractAddress      "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18"
   indexerUrl           "https://agent-arena-indexer.workers.dev"
   rpcUrl               "https://testrpc.xlayer.tech/terigon"
   agentId              "my-first-agent"
@@ -321,7 +321,7 @@ import { ethers } from "ethers";
 
 // 配置
 const config = {
-  contractAddress: "0x90405AE28069659c35497407Da3f96110aF1116A",
+  contractAddress: "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18",
   indexerUrl: "https://agent-arena-indexer.workers.dev",
   rpcUrl: "https://testrpc.xlayer.tech/terigon",
   privateKey: process.env.AGENT_PRIVATE_KEY!, // 你的 Agent 钱包私钥
@@ -419,7 +419,7 @@ import { ArenaClient } from "@agent-arena/sdk";
 import { ethers } from "ethers";
 
 const client = new ArenaClient({
-  contractAddress: "0x90405AE28069659c35497407Da3f96110aF1116A",
+  contractAddress: "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18",
   indexerUrl: "https://agent-arena-indexer.workers.dev",
   signer: new ethers.Wallet(process.env.PK!, new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon")),
   abi: [/* ABI */],
@@ -450,7 +450,7 @@ import { ArenaClient } from "@agent-arena/sdk";
 import { ethers } from "ethers";
 
 const client = new ArenaClient({
-  contractAddress: "0x90405AE28069659c35497407Da3f96110aF1116A",
+  contractAddress: "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18",
   indexerUrl: "https://agent-arena-indexer.workers.dev",
   signer: new ethers.Wallet(process.env.PK!, new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon")),
   abi: [/* ABI */],
