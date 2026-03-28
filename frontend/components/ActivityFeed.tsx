@@ -101,37 +101,43 @@ export function ActivityFeed() {
       }
     })();
 
-    // Live listener
-    const handlers: Array<{ name: string; handler: (...args: unknown[]) => void }> = [];
-    for (const name of eventNames) {
-      const handler = (...args: unknown[]) => {
-        const event = args[args.length - 1] as ethers.EventLog;
-        const meta = eventMeta(name);
-        const parsed = contract.interface.parseLog({ topics: event.topics as string[], data: event.data });
-        if (!parsed) return;
-        // Fetch block timestamp asynchronously, then update the event
-        rpc.getBlock(event.blockNumber).then(block => {
-          const ts = block ? block.timestamp * 1000 : Date.now();
-          setEvents(prev => [{
-            id: `${event.transactionHash}-${event.index}`,
-            type: name,
-            icon: meta.icon,
-            color: meta.color,
-            title: formatTitle(name, parsed.args, lang),
-            detail: formatDetail(name, parsed.args),
-            blockNumber: event.blockNumber,
-            txHash: event.transactionHash,
-            timestamp: ts,
-          }, ...prev].slice(0, MAX_EVENTS));
-        });
-      };
-      contract.on(name, handler);
-      handlers.push({ name, handler });
-    }
+    // Poll for new events every 15s (X-Layer RPC doesn't support eth_newFilter)
+    let lastPolledBlock = 0;
+    const pollId = setInterval(async () => {
+      try {
+        const currentBlock = await rpc.getBlockNumber();
+        if (currentBlock <= lastPolledBlock) return;
+        const from = lastPolledBlock + 1;
+        lastPolledBlock = currentBlock;
+        for (const name of eventNames) {
+          const filter = contract.filters[name]();
+          const logs = await contract.queryFilter(filter, from, currentBlock);
+          for (const log of logs) {
+            const event = log as ethers.EventLog;
+            const meta = eventMeta(name);
+            const parsed = contract.interface.parseLog({ topics: event.topics as string[], data: event.data });
+            if (!parsed) continue;
+            const block = await rpc.getBlock(event.blockNumber);
+            const ts = block ? block.timestamp * 1000 : Date.now();
+            setEvents(prev => [{
+              id: `${event.transactionHash}-${event.index}`,
+              type: name,
+              icon: meta.icon,
+              color: meta.color,
+              title: formatTitle(name, parsed.args, lang),
+              detail: formatDetail(name, parsed.args),
+              blockNumber: event.blockNumber,
+              txHash: event.transactionHash,
+              timestamp: ts,
+            }, ...prev].slice(0, MAX_EVENTS));
+          }
+        }
+      } catch { /* ignore poll errors */ }
+    }, 15_000);
     setListening(true);
 
     return () => {
-      handlers.forEach(({ name, handler }) => contract.off(name, handler));
+      clearInterval(pollId);
       setListening(false);
     };
   }, [lang]);

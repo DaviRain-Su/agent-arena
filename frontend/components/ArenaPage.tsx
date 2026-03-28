@@ -182,15 +182,11 @@ export function ArenaPage() {
     loadData();
   }, [provider, loadData]);
 
-  // Real-time event listening — auto-refresh on chain events
+  // Poll for updates (X-Layer RPC doesn't support eth_newFilter)
   useEffect(() => {
-    const contract = getReadContract();
-    if (!contract) return;
-    const refresh = () => { loadData().catch(console.error); };
-    const events = ["TaskPosted", "TaskApplied", "TaskAssigned", "TaskCompleted", "TaskRefunded", "ForceRefunded"];
-    events.forEach(e => contract.on(e, refresh));
-    return () => { events.forEach(e => contract.off(e, refresh)); };
-  }, [getReadContract, loadData]);
+    const id = setInterval(() => { loadData().catch(console.error); }, 15_000);
+    return () => clearInterval(id);
+  }, [loadData]);
 
   // Post task form state
   const [evalType, setEvalType] = useState<"manual" | "test_cases" | "judge_prompt">("manual");
