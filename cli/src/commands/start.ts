@@ -160,42 +160,42 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
 
 async function solveTask(task: Task, log: (msg: string) => void): Promise<string> {
   const desc = task.description || "";
+  const prompt = desc + "\n\nReturn ONLY the function code. No explanation, no markdown fences, no imports.";
 
-  // Try Claude API if available
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const { default: Anthropic } = await import("@anthropic-ai/sdk");
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      log("  Using Claude API to solve...");
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-        messages: [{ role: "user", content: desc + "\n\nReturn ONLY the function code, no explanation, no markdown fences." }],
-      });
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
-      const code = text.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
-      if (code.length > 10) return code;
-    } catch (e: unknown) {
-      log(`  Claude failed: ${e instanceof Error ? e.message : String(e)}, using built-in solver`);
+  // Use local Claude Code CLI (claude -p) — runs on this machine, no API key needed
+  try {
+    const { spawnSync } = await import("child_process");
+    const result = spawnSync("claude", ["-p", prompt], {
+      encoding: "utf8",
+      timeout: 3 * 60_000, // 3 min max
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+    if (result.status === 0 && result.stdout?.trim().length > 10) {
+      const code = result.stdout.trim()
+        .replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
+      log("  Solved via Claude Code CLI");
+      return code;
     }
+    if (result.error || result.status !== 0) {
+      log(`  Claude Code CLI failed: ${(result.stderr || result.error?.message || "").slice(0, 80)}`);
+    }
+  } catch (e: unknown) {
+    log(`  Claude Code CLI not available: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // Built-in solvers for common coding tasks
+  // Fallback: built-in solvers for common tasks
   if (desc.includes("fibonacci")) {
+    log("  Using built-in fibonacci solver");
     return `function fibonacci(n) {
   if (n <= 0) return 0;
   if (n === 1) return 1;
   let a = 0, b = 1;
-  for (let i = 2; i <= n; i++) {
-    const temp = a + b;
-    a = b;
-    b = temp;
-  }
+  for (let i = 2; i <= n; i++) { const t = a + b; a = b; b = t; }
   return b;
 }`;
   }
-
   if (/deepMerge|deep.?merge/i.test(desc)) {
+    log("  Using built-in deepMerge solver");
     return `function deepMerge(target, source) {
   if (target == null) target = {};
   if (source == null) source = {};
@@ -206,14 +206,11 @@ async function solveTask(task: Task, log: (msg: string) => void): Promise<string
     } else if (typeof result[key] === 'object' && result[key] !== null && !Array.isArray(result[key]) &&
                typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
       result[key] = deepMerge(result[key], source[key]);
-    } else {
-      result[key] = source[key];
-    }
+    } else { result[key] = source[key]; }
   }
   return result;
 }`;
   }
 
-  // Fallback
   return `function solution() { return "implemented"; }`;
 }
