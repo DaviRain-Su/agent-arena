@@ -152,10 +152,17 @@ export class AgentLoop {
     const myAddress = (await this.client.getAddress()).toLowerCase();
 
     for (const task of tasks) {
-      if (appliedIds.has(task.id)) continue;
-      if (this.skipApplyIds.has(task.id)) continue;
+      if (appliedIds.has(task.id)) {
+        this.cfg.log(`  Task #${task.id}: already applied, skip`);
+        continue;
+      }
+      if (this.skipApplyIds.has(task.id)) {
+        this.cfg.log(`  Task #${task.id}: in skipApplyIds, skip`);
+        continue;
+      }
       // Skip own tasks (Poster cannot apply)
       if (task.poster?.toLowerCase() === myAddress) {
+        this.cfg.log(`  Task #${task.id}: poster is self (${task.poster}), skip`);
         this.skipApplyIds.add(task.id);
         continue;
       }

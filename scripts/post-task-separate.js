@@ -122,12 +122,33 @@ async function main() {
   console.log(`\n  Task ID:   #${taskId}`);
   console.log(`  Tx:        ${tx.hash}`);
   console.log(`  Poster:    ${poster.address} (NOT your agent)`);
-  console.log(`  Agent:     can now apply for task #${taskId}`);
 
   const explorerBase = RPC_URL.includes("test")
     ? "https://www.okx.com/web3/explorer/xlayer-test/tx/"
     : "https://www.okx.com/web3/explorer/xlayer/tx/";
-  console.log(`  Explorer:  ${explorerBase}${tx.hash}\n`);
+  console.log(`  Explorer:  ${explorerBase}${tx.hash}`);
+
+  // 4. Wait for agent to apply, then auto-assign
+  const AGENT_ADDRESS = process.env.AGENT_ADDRESS || "0xE18756E756f0F471FA3f9559a22334a1be8D9bc9";
+  console.log(`\n  Waiting for agent ${AGENT_ADDRESS.slice(0, 10)}... to apply...`);
+
+  for (let i = 0; i < 12; i++) { // wait up to 6 min (12 * 30s)
+    await new Promise(r => setTimeout(r, 30_000));
+    const applied = await contract.hasApplied(taskId, AGENT_ADDRESS);
+    if (applied) {
+      process.stdout.write("  Agent applied! Assigning... ");
+      const assignTx = await contract.assignTask(taskId, AGENT_ADDRESS);
+      await assignTx.wait();
+      console.log("✅");
+      console.log(`  Assign Tx: ${assignTx.hash}`);
+      console.log(`\n  ✅ Task #${taskId} assigned to ${AGENT_ADDRESS}`);
+      console.log(`  Agent daemon will now execute and submit result.\n`);
+      return;
+    }
+    process.stdout.write(".");
+  }
+  console.log(`\n  ⚠️  Agent did not apply within timeout. Assign manually:`);
+  console.log(`     node -e "..." or use frontend UI\n`);
 }
 
 main().catch(err => {
