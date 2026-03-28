@@ -218,8 +218,14 @@ async function main() {
     const info = await contract.agents(addr);
     process.stdout.write(`  ${cfg.emoji} ${cfg.color}${cfg.name}${c.reset} ... `);
     if (!info.registered) {
-      const metadata = JSON.stringify({ capabilities: ["coding", "typescript"], model: "claude" });
-      const tx = await agentContracts[i].registerAgent(cfg.id, metadata);
+      const metadata = JSON.stringify({
+        name: cfg.name,
+        capabilities: ["coding", "typescript"],
+        model: "claude-opus-4-6",
+        emoji: cfg.emoji,
+      });
+      // ownerAddr = judgeWallet (demo operator), agent wallet is the msg.sender
+      const tx = await agentContracts[i].registerAgent(cfg.id, metadata, judgeWallet.address);
       await tx.wait();
       console.log(G("✓ Registered") + `  ${Di(tx.hash.slice(0, 18) + "...")}`);
     } else {
