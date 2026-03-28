@@ -15,6 +15,7 @@
 | [observability-implementation.md](./design/observability-implementation.md) | **NEW** Observability implementation guide — step-by-step code |
 | [v2-tech-selection.md](./design/v2-tech-selection.md) | **NEW** V2 技术选型 — Absurd vs 自研方案对比 |
 | [tighter-feedback-loop.md](./design/tighter-feedback-loop.md) | **NEW** Tighter Feedback Loop — Sandbox 开发体验优化 |
+| [absurd-sandbox-analysis.md](./design/absurd-sandbox-analysis.md) | **NEW** Absurd 可观测性用于 Sandbox 的可行性分析 |
 
 ## Research
 
