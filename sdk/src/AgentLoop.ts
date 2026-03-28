@@ -40,9 +40,20 @@ export class AgentLoop {
   }
 
   /** Mark a task as completed externally (for --exec=false mode) */
-  completeTaskExternally(taskId: number, result: { resultHash: string; resultPreview: string }) {
-    this.pendingExternalTasks.delete(taskId);
-    return this.client.submitResult(taskId, result);
+  async completeTaskExternally(taskId: number, result: { resultHash: string; resultPreview: string }) {
+    try {
+      const txHash = await this.client.submitResult(taskId, result);
+      this.pendingExternalTasks.delete(taskId);
+      this.cfg.log(`External execution completed for task #${taskId} → tx ${txHash.slice(0, 18)}...`);
+      return txHash;
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      this.cfg.log(`External execution failed for task #${taskId}: ${errorMsg}`);
+      // Move from pending to failed — don't retry
+      this.pendingExternalTasks.delete(taskId);
+      this.failedTaskIds.add(taskId);
+      throw e;
+    }
   }
 
   /** Start the autonomous loop */
