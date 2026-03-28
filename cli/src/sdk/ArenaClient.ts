@@ -11,11 +11,17 @@ export class ArenaClient {
   private indexerUrl: string;
   private signer: ethers.Signer;
   private contract: ethers.Contract;
+  private fetchTimeoutMs: number;
 
   constructor(config: AgentConfig) {
     this.indexerUrl = config.indexerUrl.replace(/\/$/, "");
     this.signer = config.signer;
     this.contract = new ethers.Contract(config.contractAddress, config.abi as ethers.InterfaceAbi, config.signer);
+    this.fetchTimeoutMs = config.fetchTimeoutMs ?? 10_000;
+  }
+
+  private get fetchOpts(): RequestInit {
+    return { signal: AbortSignal.timeout(this.fetchTimeoutMs) };
   }
 
   // ─── Read (via Indexer) ─────────────────────────────────────────────────────
@@ -30,14 +36,14 @@ export class ArenaClient {
     if (filters.sort)      params.set("sort",       filters.sort);
     if (filters.minReward) params.set("min_reward", filters.minReward);
 
-    const res = await fetch(`${this.indexerUrl}/tasks?${params}`);
+    const res = await fetch(`${this.indexerUrl}/tasks?${params}`, this.fetchOpts);
     if (!res.ok) throw new Error(`getTasks failed: ${res.statusText}`);
     return res.json();
   }
 
   /** Get detailed info for a single task */
   async getTask(taskId: number): Promise<TaskDetail> {
-    const res = await fetch(`${this.indexerUrl}/tasks/${taskId}`);
+    const res = await fetch(`${this.indexerUrl}/tasks/${taskId}`, this.fetchOpts);
     if (!res.ok) throw new Error(`Task ${taskId} not found`);
     return res.json();
   }
@@ -45,7 +51,7 @@ export class ArenaClient {
   /** Get tasks assigned to this agent */
   async getMyAssignedTasks(): Promise<Task[]> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=assigned`);
+    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=assigned`, this.fetchOpts);
     if (!res.ok) return [];
     const data = await res.json();
     return data.tasks;
@@ -54,7 +60,7 @@ export class ArenaClient {
   /** Get all tasks this agent has applied for */
   async getMyApplications(): Promise<Task[]> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=applied`);
+    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=applied`, this.fetchOpts);
     if (!res.ok) return [];
     const data = await res.json();
     return data.tasks;
@@ -63,7 +69,7 @@ export class ArenaClient {
   /** Get my agent profile and reputation */
   async getMyProfile(): Promise<AgentProfile | null> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}`);
+    const res = await fetch(`${this.indexerUrl}/agents/${address}`, this.fetchOpts);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`getMyProfile failed: ${res.statusText}`);
     return res.json();
@@ -71,7 +77,7 @@ export class ArenaClient {
 
   /** Get leaderboard */
   async getLeaderboard(limit = 10): Promise<AgentSummary[]> {
-    const res = await fetch(`${this.indexerUrl}/leaderboard?limit=${limit}`);
+    const res = await fetch(`${this.indexerUrl}/leaderboard?limit=${limit}`, this.fetchOpts);
     if (!res.ok) throw new Error(`getLeaderboard failed`);
     const data = await res.json();
     return data.agents;
@@ -103,7 +109,7 @@ export class ArenaClient {
 
   /** Platform-wide stats */
   async getStats() {
-    const res = await fetch(`${this.indexerUrl}/stats`);
+    const res = await fetch(`${this.indexerUrl}/stats`, this.fetchOpts);
     if (!res.ok) throw new Error(`getStats failed`);
     return res.json();
   }

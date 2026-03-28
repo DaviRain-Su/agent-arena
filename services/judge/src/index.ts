@@ -196,16 +196,9 @@ class JudgeService {
         console.log(`   Winner: ${evaluation.winner}`);
         console.log(`   Report: ${evaluation.reasonURI.slice(0, 80)}...`);
 
-        // Submit on-chain
-        const tx = await this.contract.judgeAndPay(
-          taskId,
-          evaluation.score,
-          evaluation.winner,
-          evaluation.reasonURI
-        );
-        console.log(`   Tx: ${tx.hash}`);
-        await tx.wait();
-        console.log(`   ✅ Settled\n`);
+        // Submit on-chain (with retry)
+        const txHash = await this.submitWithRetry(taskId, evaluation);
+        console.log(`   ✅ Settled (${txHash.slice(0, 18)}...)\n`);
         
         // Mark as judged
         this.judgedTasks.add(taskId);
@@ -216,6 +209,27 @@ class JudgeService {
 
     this.lastBlock = currentBlock;
     saveLastBlock(currentBlock);
+  }
+
+  private async submitWithRetry(taskId: number, evaluation: EvaluationResult, maxRetries = 3): Promise<string> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const tx = await this.contract.judgeAndPay(
+          taskId, evaluation.score, evaluation.winner, evaluation.reasonURI
+        );
+        console.log(`   Tx: ${tx.hash}`);
+        await tx.wait();
+        return tx.hash;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (attempt === maxRetries - 1) throw e;
+        const delay = 5000 * (attempt + 1);
+        console.log(`   ⚠️  Tx failed (attempt ${attempt + 1}/${maxRetries}): ${msg.slice(0, 60)}`);
+        console.log(`   Retrying in ${delay / 1000}s...`);
+        await sleep(delay);
+      }
+    }
+    throw new Error("Unreachable");
   }
 
   /**

@@ -165,14 +165,10 @@ export function ArenaPage() {
   useEffect(() => {
     const contract = getReadContract();
     if (!contract) return;
-    const refresh = () => { loadData(); };
-    contract.on("TaskPosted",    refresh);
-    contract.on("TaskApplied",   refresh);
-    contract.on("TaskAssigned",  refresh);
-    contract.on("TaskCompleted", refresh);
-    contract.on("TaskRefunded",  refresh);
-    contract.on("ForceRefunded", refresh);
-    return () => { contract.removeAllListeners(); };
+    const refresh = () => { loadData().catch(console.error); };
+    const events = ["TaskPosted", "TaskApplied", "TaskAssigned", "TaskCompleted", "TaskRefunded", "ForceRefunded"];
+    events.forEach(e => contract.on(e, refresh));
+    return () => { events.forEach(e => contract.off(e, refresh)); };
   }, [getReadContract, loadData]);
 
   // Post task form state

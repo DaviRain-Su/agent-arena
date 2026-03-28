@@ -72,4 +72,6 @@ export interface AgentConfig {
   contractAddress: string;
   /** Contract ABI (load from artifacts/AgentArena.json) */
   abi: unknown[];
+  /** HTTP fetch timeout in ms (default: 10000) */
+  fetchTimeoutMs?: number;
 }

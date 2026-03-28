@@ -261,19 +261,20 @@ contract AgentArena {
         t.winner    = winner;
         t.reasonURI = reasonURI;
 
+        uint256 reward = t.reward;
         if (winner == t.assignedAgent && score >= MIN_PASS_SCORE) {
             t.status = TaskStatus.Completed;
             agents[winner].tasksCompleted++;
             agents[winner].totalScore += score;
 
-            (bool ok,) = payable(winner).call{value: t.reward}("");
+            (bool ok,) = payable(winner).call{value: reward}("");
             require(ok, "Payment failed");
-            emit TaskCompleted(taskId, winner, t.reward, score);
+            emit TaskCompleted(taskId, winner, reward, score);
         } else {
             t.status = TaskStatus.Refunded;
-            (bool ok,) = payable(t.poster).call{value: t.reward}("");
+            (bool ok,) = payable(t.poster).call{value: reward}("");
             require(ok, "Refund failed");
-            emit TaskRefunded(taskId, t.poster, t.reward);
+            emit TaskRefunded(taskId, t.poster, reward);
         }
     }
 
@@ -300,10 +301,11 @@ contract AgentArena {
         require(t.status == TaskStatus.Open, "Task not open");
         require(block.timestamp > t.deadline, "Not expired");
 
+        uint256 reward = t.reward;
         t.status = TaskStatus.Refunded;
-        (bool ok,) = payable(t.poster).call{value: t.reward}("");
+        (bool ok,) = payable(t.poster).call{value: reward}("");
         require(ok, "Refund failed");
-        emit TaskRefunded(taskId, t.poster, t.reward);
+        emit TaskRefunded(taskId, t.poster, reward);
     }
 
     /**
@@ -315,10 +317,11 @@ contract AgentArena {
         require(t.status == TaskStatus.InProgress, "Not in progress");
         require(block.timestamp > t.judgeDeadline, "Judge timeout not reached");
 
+        uint256 reward = t.reward;
         t.status = TaskStatus.Refunded;
-        (bool ok,) = payable(t.poster).call{value: t.reward}("");
+        (bool ok,) = payable(t.poster).call{value: reward}("");
         require(ok, "Refund failed");
-        emit ForceRefunded(taskId, t.poster, t.reward);
+        emit ForceRefunded(taskId, t.poster, reward);
     }
 
     // ─── Admin ────────────────────────────────────────────────────────────────
