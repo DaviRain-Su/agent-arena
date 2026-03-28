@@ -17,6 +17,7 @@ interface Task {
   description: string;
   reward: bigint;
   deadline: number;
+  judgeDeadline: number;
   status: number;
   assignedAgent: string;
   resultHash: string;
@@ -62,6 +63,8 @@ export function ArenaPage() {
   } | null>(null);
   const [myAgentId, setMyAgentId] = useState<string>("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const [judgeAddress, setJudgeAddress] = useState<string>("");
+  const [judgeForm, setJudgeForm] = useState<{ taskId: number; score: number } | null>(null);
 
   const getReadContract = useCallback(() => {
     if (!provider) return null;
@@ -91,6 +94,7 @@ export function ArenaPage() {
             description: t.description,
             reward: t.reward,
             deadline: Number(t.deadline),
+            judgeDeadline: Number(t.judgeDeadline),
             status: Number(t.status),
             assignedAgent: t.assignedAgent,
             resultHash: t.resultHash,
@@ -124,6 +128,10 @@ export function ArenaPage() {
         );
       }
       setAgents(await Promise.all(agentPromises));
+
+      // Load judge address
+      const judgeAddr = await contract.judgeAddress();
+      setJudgeAddress(judgeAddr.toLowerCase());
 
       // Check if current user is registered + load reputation
       if (address) {
@@ -234,6 +242,48 @@ export function ArenaPage() {
       await loadData();
     } catch (e) {
       console.error("Submit failed", e);
+    }
+  };
+
+  const doJudgeAndPay = async (taskId: number, score: number, winner: string) => {
+    const contract = getWriteContract();
+    if (!contract) return;
+    try {
+      const report = { taskId, score, winner, judge: address, timestamp: Date.now() };
+      const reasonURI = `data:application/json;base64,${btoa(JSON.stringify(report))}`;
+      const tx = await contract.judgeAndPay(taskId, score, winner, reasonURI);
+      setTxHash(tx.hash);
+      await tx.wait();
+      setJudgeForm(null);
+      await loadData();
+    } catch (e) {
+      console.error("Judge failed", e);
+    }
+  };
+
+  const doRefundExpired = async (taskId: number) => {
+    const contract = getWriteContract();
+    if (!contract) return;
+    try {
+      const tx = await contract.refundExpired(taskId);
+      setTxHash(tx.hash);
+      await tx.wait();
+      await loadData();
+    } catch (e) {
+      console.error("Refund failed", e);
+    }
+  };
+
+  const doForceRefund = async (taskId: number) => {
+    const contract = getWriteContract();
+    if (!contract) return;
+    try {
+      const tx = await contract.forceRefund(taskId);
+      setTxHash(tx.hash);
+      await tx.wait();
+      await loadData();
+    } catch (e) {
+      console.error("Force refund failed", e);
     }
   };
 
@@ -771,6 +821,86 @@ export function ArenaPage() {
                                 {lang === "en" ? "Submit My Result" : "提交我的结果"}
                               </button>
                             )}
+                          </div>
+                        )}
+
+                        {/* Judge & Pay — judge wallet only */}
+                        {task.status === 1 &&
+                          task.resultHash && task.resultHash !== ethers.ZeroHash &&
+                          address?.toLowerCase() === judgeAddress && (
+                          <div className="pt-2 border-t border-amber-500/20">
+                            <p className="text-xs text-amber-400/80 mb-2">
+                              ⚖️ {lang === "en" ? "Judge Panel" : "裁判面板"}
+                            </p>
+                            {judgeForm?.taskId === task.id ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <label className="text-xs text-white/40 w-12 shrink-0">
+                                    {lang === "en" ? "Score" : "评分"}
+                                  </label>
+                                  <input
+                                    type="range" min={0} max={100}
+                                    value={judgeForm.score}
+                                    onChange={e => setJudgeForm({ ...judgeForm, score: Number(e.target.value) })}
+                                    className="flex-1 accent-amber-400"
+                                    onClick={e => e.stopPropagation()}
+                                  />
+                                  <span className="text-sm font-mono w-8 text-right" style={{ color: "#f59e0b" }}>
+                                    {judgeForm.score}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-white/30">
+                                  {lang === "en" ? "Winner:" : "胜者："}
+                                  <span className="font-mono ml-1">{shortenAddress(task.assignedAgent)}</span>
+                                </p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={e => { e.stopPropagation(); doJudgeAndPay(task.id, judgeForm.score, task.assignedAgent); }}
+                                    className="px-4 py-1.5 text-xs border transition"
+                                    style={{ borderColor: "#f59e0b80", color: "#f59e0b" }}
+                                  >
+                                    {lang === "en" ? "Judge & Pay" : "裁判并支付"}
+                                  </button>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setJudgeForm(null); }}
+                                    className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition"
+                                  >
+                                    {lang === "en" ? "Cancel" : "取消"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={e => { e.stopPropagation(); setJudgeForm({ taskId: task.id, score: 75 }); }}
+                                className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
+                                style={{ borderColor: "#f59e0b40", color: "#f59e0b" }}
+                              >
+                                ⚖️ {lang === "en" ? "Open Judge Panel" : "打开裁判面板"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Refund — Open+expired or InProgress+judge timeout */}
+                        {isConnected && (
+                          (task.status === 0 && expired) ||
+                          (task.status === 1 && task.judgeDeadline > 0 && task.judgeDeadline < Math.floor(Date.now() / 1000))
+                        ) && (
+                          <div className="pt-2 border-t border-red-500/20">
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                task.status === 0 ? doRefundExpired(task.id) : doForceRefund(task.id);
+                              }}
+                              className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
+                              style={{ borderColor: "rgba(239,68,68,0.4)", color: "#f87171" }}
+                            >
+                              <XCircle className="w-3 h-3" />
+                              {task.status === 0
+                                ? (lang === "en" ? "Refund (Task Expired)" : "退款（任务已过期）")
+                                : (lang === "en" ? "Force Refund (Judge Timeout)" : "强制退款（裁判超时）")
+                              }
+                            </button>
                           </div>
                         )}
                       </div>

@@ -19,6 +19,9 @@
 import { ethers } from "ethers";
 import { config } from "dotenv";
 import { Anthropic } from "@anthropic-ai/sdk";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+import os from "os";
 import { AGENT_ARENA_ABI } from "./abi.js";
 
 config();
@@ -32,6 +35,27 @@ const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000");
 if (!PRIVATE_KEY) {
   console.error("❌ PRIVATE_KEY required");
   process.exit(1);
+}
+
+// Persistent state file for lastBlock tracking
+const STATE_FILE = join(os.homedir(), ".arena", "judge-block.json");
+
+function loadLastBlock(): number {
+  try {
+    const data = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+    return typeof data.lastBlock === "number" ? data.lastBlock : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveLastBlock(block: number): void {
+  try {
+    mkdirSync(join(os.homedir(), ".arena"), { recursive: true });
+    writeFileSync(STATE_FILE, JSON.stringify({ lastBlock: block }));
+  } catch (e) {
+    console.error(`Warning: failed to persist lastBlock: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 // Claude client (optional - if not provided, uses automatic evaluation only)
@@ -95,8 +119,14 @@ class JudgeService {
       process.exit(1);
     }
 
-    this.lastBlock = await this.provider.getBlockNumber();
-    console.log(`Starting from block ${this.lastBlock}\n`);
+    const savedBlock = loadLastBlock();
+    if (savedBlock > 0) {
+      this.lastBlock = savedBlock;
+      console.log(`Resuming from saved block ${this.lastBlock}\n`);
+    } else {
+      this.lastBlock = await this.provider.getBlockNumber();
+      console.log(`Starting from block ${this.lastBlock}\n`);
+    }
 
     this.running = true;
     while (this.running) {
@@ -183,6 +213,7 @@ class JudgeService {
     }
 
     this.lastBlock = currentBlock;
+    saveLastBlock(currentBlock);
   }
 
   /**
