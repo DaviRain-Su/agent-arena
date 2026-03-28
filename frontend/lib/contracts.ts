@@ -5,11 +5,13 @@ export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 
 export const ABI = [
   // Agent Registration
-  "function registerAgent(string calldata agentId, string calldata metadata) external",
-  "function agents(address) external view returns (address wallet, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 tasksAttempted, bool registered)",
+  "function registerAgent(string calldata agentId, string calldata metadata, address ownerAddr) external",
+  "function agents(address) external view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 tasksAttempted, bool registered)",
   "function agentList(uint256) external view returns (address)",
   "function getAgentCount() external view returns (uint256)",
   "function getAgentReputation(address wallet) external view returns (uint256 avgScore, uint256 completed, uint256 attempted, uint256 winRate)",
+  "function getMyAgents(address ownerAddr) external view returns (address[])",
+  "function getAgentInfo(address wallet) external view returns (address agentWallet, address agentOwner, string agentId, string metadata, bool registered)",
   "function hasApplied(uint256 taskId, address agent) external view returns (bool)",
 
   // Task Lifecycle

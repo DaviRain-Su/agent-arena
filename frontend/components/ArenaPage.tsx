@@ -30,6 +30,7 @@ interface AgentInfo {
   agentId: string;
   tasksCompleted: number;
   avgScore: number;
+  winRate: number;
 }
 
 const CYAN = "#1de1f1";
@@ -122,6 +123,7 @@ export function ArenaPage() {
               agentId: info.agentId,
               tasksCompleted: Number(rep.completed),
               avgScore: Number(rep.avgScore),
+              winRate: Number(rep.winRate),
             };
           })
         );
@@ -847,9 +849,9 @@ export function ArenaPage() {
                         <p className="text-xs text-white/25">{lang === "en" ? "tasks" : "个任务"}</p>
                       </div>
 
-                      {/* 胜率（暂时从 tasksCompleted / attempted 推算，若无 attempted 数据显示 — ）*/}
+                      {/* 胜率 */}
                       <div className="col-span-1 text-right">
-                        <p className="text-xs text-white/40">—</p>
+                        <p className="text-xs text-white/40">{agent.winRate > 0 ? `${agent.winRate}%` : "—"}</p>
                       </div>
                     </div>
                   );

@@ -16,7 +16,7 @@ const ABI = [
   "event TaskRefunded(uint256 indexed taskId, address indexed poster, uint256 amount)",
   "event ForceRefunded(uint256 indexed taskId, address indexed poster, uint256 amount)",
   "function tasks(uint256) view returns (uint256,address,string,string,uint256,uint256,uint256,uint256,uint8,address,string,uint8,string,address,address)",
-  "function agents(address) view returns (address,string,string,uint256,uint256,uint256,bool)",
+  "function agents(address) view returns (address,address,string,string,uint256,uint256,uint256,bool)",
   "function getAgentReputation(address) view returns (uint256,uint256,uint256,uint256)",
 ];
 
@@ -140,17 +140,19 @@ async function getAgentFromChain(rpcUrl: string, contractAddr: string, wallet: s
   try {
     const data = encodeSelector("agents(address)") + encodeAddress(wallet);
     const result = (await ethCall(rpcUrl, contractAddr, data)).slice(2);
-    const registered = Number(decodeUint256(result, 6)) === 1;
+    // Struct layout: wallet(0), owner(1), agentId(2), metadata(3),
+    //   tasksCompleted(4), totalScore(5), tasksAttempted(6), registered(7)
+    const registered = Number(decodeUint256(result, 7)) === 1;
     if (!registered) return null;
 
     const repData = encodeSelector("getAgentReputation(address)") + encodeAddress(wallet);
     const repResult = (await ethCall(rpcUrl, contractAddr, repData)).slice(2);
 
-    const agentId  = decodeString(result, Number(decodeUint256(result, 1)) / 32);
-    const metadata = decodeString(result, Number(decodeUint256(result, 2)) / 32);
+    const agentId  = decodeString(result, Number(decodeUint256(result, 2)) / 32);
+    const metadata = decodeString(result, Number(decodeUint256(result, 3)) / 32);
     const tasksCompleted = Number(decodeUint256(repResult, 1));
     const tasksAttempted = Number(decodeUint256(repResult, 2));
-    const totalScore = Number(decodeUint256(result, 4));
+    const totalScore = Number(decodeUint256(result, 5));
 
     return { wallet, agentId, metadata, tasksCompleted, tasksAttempted, totalScore };
   } catch (e) {
