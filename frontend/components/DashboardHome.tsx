@@ -36,61 +36,59 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
     setLoading(true);
     try {
-      const rpc = new ethers.JsonRpcProvider(RPC);
-      const contract = getContract(rpc);
-
-      const taskCount = Number(await contract.taskCount());
-      const agentCount = Number(await contract.getAgentCount());
-
-      let open = 0, completed = 0, totalReward = BigInt(0);
-      const taskPromises = [];
-      for (let i = 0; i < taskCount; i++) {
-        taskPromises.push(contract.tasks(i));
+      // Use Indexer API for stats (single request instead of N chain calls)
+      try {
+        const res = await fetch(`${indexerUrl}/stats`);
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            totalTasks: data.totalTasks || 0,
+            openTasks: data.openTasks || 0,
+            completedTasks: data.completedTasks || 0,
+            totalAgents: data.totalAgents || 0,
+            totalRewardsOKB: String(data.totalRewardPaid || "0"),
+          });
+        }
+      } catch {
+        // Fallback to chain
+        const rpc = new ethers.JsonRpcProvider(RPC);
+        const contract = getContract(rpc);
+        const taskCount = Number(await contract.taskCount());
+        const agentCount = Number(await contract.getAgentCount());
+        let open = 0, completed = 0, totalReward = BigInt(0);
+        for (let i = 0; i < taskCount; i++) {
+          try {
+            const t = await contract.tasks(i);
+            if (Number(t.status) === 0) open++;
+            if (Number(t.status) === 2) { completed++; totalReward += t.reward; }
+          } catch { /* skip */ }
+        }
+        setStats({ totalTasks: taskCount, openTasks: open, completedTasks: completed,
+          totalAgents: agentCount, totalRewardsOKB: parseFloat(ethers.formatEther(totalReward)).toFixed(4) });
       }
-      const allTasks = await Promise.all(taskPromises);
-      for (const t of allTasks) {
-        if (Number(t.status) === 0) open++;
-        if (Number(t.status) === 2) { completed++; totalReward += t.reward; }
-      }
 
-      setStats({
-        totalTasks: taskCount,
-        openTasks: open,
-        completedTasks: completed,
-        totalAgents: agentCount,
-        totalRewardsOKB: parseFloat(ethers.formatEther(totalReward)).toFixed(4),
-      });
-
+      // Load user's agents from chain (only 2-3 calls, acceptable)
       if (address) {
-        const owned: string[] = await contract.getMyAgents(address);
+        const rpc = new ethers.JsonRpcProvider(RPC);
+        const contract = getContract(rpc);
         const agentInfos: MyAgentInfo[] = [];
-        for (const w of owned) {
-          const [info, rep] = await Promise.all([
-            contract.agents(w),
-            contract.getAgentReputation(w),
-          ]);
-          agentInfos.push({
-            agentId: info.agentId,
-            wallet: w,
-            avgScore: Number(rep.avgScore),
-            completed: Number(rep.completed),
-            winRate: Number(rep.winRate),
-          });
-        }
-        // Also check if wallet itself is an agent
-        const selfInfo = await contract.agents(address);
-        if (selfInfo.registered && !owned.some((w: string) => w.toLowerCase() === address.toLowerCase())) {
-          const selfRep = await contract.getAgentReputation(address);
-          agentInfos.unshift({
-            agentId: selfInfo.agentId,
-            wallet: address,
-            avgScore: Number(selfRep.avgScore),
-            completed: Number(selfRep.completed),
-            winRate: Number(selfRep.winRate),
-          });
-        }
+        try {
+          const owned: string[] = await contract.getMyAgents(address);
+          for (const w of owned) {
+            const [info, rep] = await Promise.all([contract.agents(w), contract.getAgentReputation(w)]);
+            agentInfos.push({ agentId: info.agentId, wallet: w, avgScore: Number(rep.avgScore),
+              completed: Number(rep.completed), winRate: Number(rep.winRate) });
+          }
+          const selfInfo = await contract.agents(address);
+          if (selfInfo.registered && !owned.some((w: string) => w.toLowerCase() === address.toLowerCase())) {
+            const selfRep = await contract.getAgentReputation(address);
+            agentInfos.unshift({ agentId: selfInfo.agentId, wallet: address, avgScore: Number(selfRep.avgScore),
+              completed: Number(selfRep.completed), winRate: Number(selfRep.winRate) });
+          }
+        } catch { /* no agents */ }
         setMyAgents(agentInfos);
       }
     } catch (e) {

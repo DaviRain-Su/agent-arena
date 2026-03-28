@@ -124,80 +124,108 @@ export function ArenaPage() {
   }, [signer]);
 
   const loadData = useCallback(async () => {
+    const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
     const contract = getReadContract();
     setLoading(true);
     try {
-      const taskCount = Number(await contract.taskCount());
-      const taskPromises = [];
-      for (let i = 0; i < Math.min(taskCount, 20); i++) {
-        taskPromises.push(
-          Promise.all([
-            contract.tasks(i),
-            contract.getApplicants(i),
-          ]).then(([t, applicants]) => ({
-            id: i,
-            poster: t.poster,
-            description: t.description,
-            reward: t.reward,
-            deadline: Number(t.deadline),
-            judgeDeadline: Number(t.judgeDeadline),
-            status: Number(t.status),
-            assignedAgent: t.assignedAgent,
-            resultHash: t.resultHash,
-            score: Number(t.score),
-            winner: t.winner,
-            applicants,
-          }))
-        );
-      }
-      const loadedTasks = await Promise.all(taskPromises);
-      setTasks(loadedTasks.reverse());
-
-      // Load agents
-      const agentCount = Number(await contract.getAgentCount());
-      const agentPromises = [];
-      for (let i = 0; i < Math.min(agentCount, 10); i++) {
-        agentPromises.push(
-          contract.agentList(i).then(async (wallet: string) => {
-            const [info, rep] = await Promise.all([
-              contract.agents(wallet),
-              contract.getAgentReputation(wallet),
-            ]);
-            const meta = parseMetadata(info.metadata);
-            return {
-              wallet,
-              owner: info.owner,
-              agentId: info.agentId,
-              metadata: info.metadata,
-              capabilities: meta.capabilities,
-              tasksCompleted: Number(rep.completed),
-              tasksAttempted: Number(rep.attempted),
-              avgScore: Number(rep.avgScore),
-              winRate: Number(rep.winRate),
-            };
-          })
-        );
-      }
-      setAgents(await Promise.all(agentPromises));
-
-      // Load judge address
-      const judgeAddr = await contract.judgeAddress();
-      setJudgeAddress(judgeAddr.toLowerCase());
-
-      // Check if current user is registered + load reputation
-      if (address) {
-        const myInfo = await contract.agents(address);
-        setIsRegistered(myInfo.registered);
-        setMyAgentId(myInfo.agentId || "");
-        if (myInfo.registered) {
-          const rep = await contract.getAgentReputation(address);
-          setMyReputation({
-            avgScore: Number(rep.avgScore),
-            completed: Number(rep.completed),
-            attempted: Number(rep.attempted),
-            winRate: Number(rep.winRate),
-          });
+      // Load tasks — Indexer first (1 request), fallback to chain
+      let loadedTasks: typeof tasks = [];
+      try {
+        const res = await fetch(`${indexerUrl}/tasks?status=all&limit=20&sort=newest`);
+        if (res.ok) {
+          const data = await res.json();
+          loadedTasks = (data.tasks || []).map((t: Record<string, unknown>) => ({
+            id: t.id as number,
+            poster: t.poster as string,
+            description: t.description as string,
+            reward: ethers.parseEther(String(t.reward || "0")),
+            deadline: t.deadline as number,
+            judgeDeadline: (t.judgeDeadline as number) || 0,
+            status: ({ open: 0, in_progress: 1, completed: 2, refunded: 3, disputed: 4 }[t.status as string] ?? 0),
+            assignedAgent: (t.assignedAgent as string) || ethers.ZeroAddress,
+            resultHash: (t as Record<string, unknown>).resultHash as string || "",
+            score: (t as Record<string, unknown>).score as number || 0,
+            winner: (t as Record<string, unknown>).winner as string || ethers.ZeroAddress,
+            applicants: [],
+          }));
         }
+      } catch { /* indexer down, fallback below */ }
+
+      if (loadedTasks.length === 0) {
+        // Fallback: read from chain sequentially (respects rate limit)
+        const taskCount = Number(await contract.taskCount());
+        for (let i = 0; i < Math.min(taskCount, 20); i++) {
+          try {
+            const [t, applicants] = await Promise.all([contract.tasks(i), contract.getApplicants(i)]);
+            loadedTasks.push({
+              id: i, poster: t.poster, description: t.description, reward: t.reward,
+              deadline: Number(t.deadline), judgeDeadline: Number(t.judgeDeadline),
+              status: Number(t.status), assignedAgent: t.assignedAgent,
+              resultHash: t.resultHash, score: Number(t.score), winner: t.winner, applicants,
+            });
+          } catch { /* skip individual task failures */ }
+        }
+        loadedTasks.reverse();
+      }
+      setTasks(loadedTasks);
+
+      // Load agents — Indexer first, fallback to chain
+      let loadedAgents: typeof agents = [];
+      try {
+        const res = await fetch(`${indexerUrl}/leaderboard?limit=20`);
+        if (res.ok) {
+          const data = await res.json();
+          loadedAgents = (data.agents || []).map((a: Record<string, unknown>) => ({
+            wallet: a.wallet as string,
+            owner: (a.owner as string) || ethers.ZeroAddress,
+            agentId: (a.agentId as string) || "",
+            metadata: (a.metadata as string) || "{}",
+            capabilities: parseMetadata((a.metadata as string) || "{}").capabilities,
+            tasksCompleted: (a.tasksCompleted as number) || 0,
+            tasksAttempted: (a.tasksAttempted as number) || 0,
+            avgScore: (a.avgScore as number) || 0,
+            winRate: (a.winRate as number) || 0,
+          }));
+        }
+      } catch { /* indexer down */ }
+
+      if (loadedAgents.length === 0) {
+        const agentCount = Number(await contract.getAgentCount());
+        for (let i = 0; i < Math.min(agentCount, 10); i++) {
+          try {
+            const wallet = await contract.agentList(i);
+            const [info, rep] = await Promise.all([contract.agents(wallet), contract.getAgentReputation(wallet)]);
+            const meta = parseMetadata(info.metadata);
+            loadedAgents.push({
+              wallet, owner: info.owner, agentId: info.agentId, metadata: info.metadata,
+              capabilities: meta.capabilities, tasksCompleted: Number(rep.completed),
+              tasksAttempted: Number(rep.attempted), avgScore: Number(rep.avgScore), winRate: Number(rep.winRate),
+            });
+          } catch { /* skip */ }
+        }
+      }
+      setAgents(loadedAgents);
+
+      // Judge address — single RPC call, fine
+      try {
+        const judgeAddr = await contract.judgeAddress();
+        setJudgeAddress(judgeAddr.toLowerCase());
+      } catch { /* skip */ }
+
+      // Check if current user is registered
+      if (address) {
+        try {
+          const myInfo = await contract.agents(address);
+          setIsRegistered(myInfo.registered);
+          setMyAgentId(myInfo.agentId || "");
+          if (myInfo.registered) {
+            const rep = await contract.getAgentReputation(address);
+            setMyReputation({
+              avgScore: Number(rep.avgScore), completed: Number(rep.completed),
+              attempted: Number(rep.attempted), winRate: Number(rep.winRate),
+            });
+          }
+        } catch { /* skip */ }
       }
     } catch (e) {
       console.error("Load failed", e);
