@@ -23,6 +23,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import os from "os";
 import { AGENT_ARENA_ABI } from "./abi.js";
+import { NodeVMProvider, runTests, calcScore } from "../../../sandbox/dist/index.js";
+import type { TestCase } from "../../../sandbox/dist/index.js";
 
 config();
 
@@ -272,29 +274,46 @@ class JudgeService {
   }
 
   private async evaluate(task: Task, submission: string): Promise<EvaluationResult> {
-    // Parse evaluation standard from task.evaluationCID
-    const evalType = this.parseEvalType(task.evaluationCID);
+    const evalStandard = this.parseEvalStandard(task.evaluationCID, task.description);
 
-    if (evalType === "test_cases") {
-      return this.evaluateWithTestCases(task, submission);
-    } else if (evalType === "judge_prompt" && anthropic) {
+    if (evalStandard.type === "test_cases" && evalStandard.cases.length > 0) {
+      return this.evaluateWithTestCases(task, submission, evalStandard.cases, evalStandard.functionName);
+    } else if ((evalStandard.type === "judge_prompt" || evalStandard.type === "manual") && anthropic) {
       return this.evaluateWithClaude(task, submission);
     } else {
-      // Default: automatic evaluation
       return this.evaluateAutomatic(task, submission);
     }
   }
 
-  private parseEvalType(evaluationCID: string): "manual" | "test_cases" | "judge_prompt" {
+  private parseEvalStandard(evaluationCID: string, description: string): {
+    type: "manual" | "test_cases" | "judge_prompt";
+    cases: TestCase[];
+    functionName: string;
+  } {
+    // Try decoding base64 evaluationCID
     if (evaluationCID.startsWith("eval:")) {
       try {
         const decoded = JSON.parse(Buffer.from(evaluationCID.slice(5), "base64").toString());
-        return decoded.type || "manual";
+        if (decoded.type === "test_cases" && Array.isArray(decoded.cases)) {
+          return { type: "test_cases", cases: decoded.cases, functionName: decoded.functionName || "solution" };
+        }
+        return { type: decoded.type || "manual", cases: [], functionName: "" };
       } catch {
-        return "manual";
+        // Not base64 JSON — fall through to heuristic
       }
     }
-    return "manual";
+
+    // Heuristic: extract function name from task description
+    const fnMatch = description.match(/function\s+called\s+['"]?(\w+)['"]?/i)
+      ?? description.match(/write\s+(?:a\s+)?(\w+)\s*\(/i);
+    const functionName = fnMatch?.[1] ?? "";
+
+    // If we found a function name, treat as test_cases (the sandbox can still run the code)
+    if (functionName) {
+      return { type: "test_cases", cases: [], functionName };
+    }
+
+    return { type: "manual", cases: [], functionName: "" };
   }
 
   /**
@@ -327,58 +346,82 @@ class JudgeService {
   }
 
   /**
-   * Evaluate using test cases extracted from the task description
-   * This is a placeholder - real implementation would run actual tests
+   * Evaluate by running code in a sandboxed VM.
+   * If test cases are provided (from evaluationCID), runs them.
+   * Otherwise does a basic syntax/execution check.
+   * V2: swap NodeVMProvider → Sandbank DaytonaAdapter for container isolation.
    */
-  private async evaluateWithTestCases(task: Task, submission: string): Promise<EvaluationResult> {
-    console.log(`   Running test case evaluation...`);
-    
-    // TODO: Implement actual test case execution
-    // For now, do a basic sanity check on the submission
-    
-    let correctness = 0;
-    
-    // Check if submission looks like valid code
-    const hasFunction = /function|def|fn\s/.test(submission);
-    const hasLogic = submission.length > 50;
-    const noSyntaxError = !submission.includes("SyntaxError") && !submission.includes("Error:");
-    
-    if (hasFunction && hasLogic && noSyntaxError) {
-      correctness = 40; // Base score for valid-looking code
-      
-      // Check for basic correctness indicators
-      if (submission.includes("return") || submission.includes("print")) {
-        correctness += 20;
+  private async evaluateWithTestCases(
+    task: Task,
+    submission: string,
+    cases: TestCase[],
+    functionName: string,
+  ): Promise<EvaluationResult> {
+    const provider = new NodeVMProvider();
+
+    // If we have explicit test cases, run them for the correctness score (60 pts)
+    if (cases.length > 0) {
+      console.log(`   Running ${cases.length} test cases in sandbox...`);
+      const results = await runTests(provider, submission, functionName, cases);
+      const passed = results.filter(r => r.passed).length;
+      const correctness = calcScore(results, 60);
+
+      for (const r of results) {
+        console.log(`     ${r.passed ? "✓" : "✗"} ${r.desc}${r.error ? ` — ${r.error.slice(0, 60)}` : ""}`);
       }
+
+      // Quality + efficiency via heuristics (40 pts total)
+      const codeQuality = this.heuristicQuality(submission, 20);
+      const efficiency = this.heuristicEfficiency(submission, 20);
+      const score = Math.min(100, correctness + codeQuality + efficiency);
+      const breakdown = { correctness, codeQuality, efficiency };
+
+      return {
+        score,
+        winner: task.assignedAgent,
+        reasonURI: this.generateReasonURI(score, breakdown, "sandbox-tests", task, submission),
+        breakdown,
+      };
     }
-    
-    // Code quality heuristics
-    let codeQuality = 10;
-    const hasComments = submission.includes("//") || submission.includes("/*") || submission.includes("#");
-    const hasProperIndent = submission.match(/^\s{2,4}/m);
-    const reasonableLength = submission.length < 5000;
-    
-    if (hasComments) codeQuality += 10;
-    if (hasProperIndent) codeQuality += 5;
-    if (reasonableLength) codeQuality += 5;
-    
-    // Efficiency heuristics  
-    let efficiency = 10;
-    const noNestedLoops = (submission.match(/for|while/g) || []).length <= 2;
-    const usesRecursion = submission.includes(submission.match(/function|def/)?.[0] || "");
-    
-    if (noNestedLoops) efficiency += 5;
-    if (!usesRecursion) efficiency += 5; // iterative often better than recursive
-    
-    const score = Math.min(100, correctness + codeQuality + efficiency);
-    const breakdown = { correctness, codeQuality, efficiency };
-    
-    return {
-      score,
-      winner: task.assignedAgent,
-      reasonURI: this.generateReasonURI(score, breakdown, "test-cases", task, submission),
-      breakdown
-    };
+
+    // No explicit test cases — do a basic execution check
+    console.log(`   Running sandbox execution check...`);
+    const sandbox = await provider.create({ timeout: 5000 });
+    try {
+      const { exitCode, stderr } = await sandbox.exec(submission, { timeout: 3000 });
+      const runs = exitCode === 0;
+      const correctness = runs ? 40 : 15;
+      const codeQuality = this.heuristicQuality(submission, 30);
+      const efficiency = this.heuristicEfficiency(submission, 30);
+      const score = Math.min(100, correctness + codeQuality + efficiency);
+      const breakdown = { correctness, codeQuality, efficiency };
+
+      if (!runs) console.log(`     Execution error: ${stderr.slice(0, 80)}`);
+
+      return {
+        score,
+        winner: task.assignedAgent,
+        reasonURI: this.generateReasonURI(score, breakdown, "sandbox-exec", task, submission),
+        breakdown,
+      };
+    } finally {
+      await provider.destroy(sandbox.id);
+    }
+  }
+
+  private heuristicQuality(code: string, max: number): number {
+    let pts = Math.round(max * 0.4);
+    if (/\/\/|\/\*|#/.test(code)) pts += Math.round(max * 0.2);
+    if (/^\s{2,4}/m.test(code)) pts += Math.round(max * 0.2);
+    if (code.length < 5000) pts += Math.round(max * 0.2);
+    return Math.min(max, pts);
+  }
+
+  private heuristicEfficiency(code: string, max: number): number {
+    let pts = Math.round(max * 0.5);
+    if ((code.match(/for|while/g) || []).length <= 2) pts += Math.round(max * 0.25);
+    if (code.length < 3000) pts += Math.round(max * 0.25);
+    return Math.min(max, pts);
   }
 
   private async evaluateWithClaude(task: Task, submission: string): Promise<EvaluationResult> {
