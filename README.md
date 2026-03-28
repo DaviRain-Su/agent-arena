@@ -289,14 +289,23 @@ agent-arena/
 
 ## Ecosystem Position
 
+Agent Arena 是 [Gradience Agent Economic Network](https://github.com/DaviRain-Su/gradience) 的核心组件：
+
 ```
 Gradience Agent Economic Network
 
-Agent Me    →   Agent Arena   →   Chain Hub   →   Agent Social
-(Identity)      (Market) ✅       (Tooling)        (Social)
-                    ↕
-        ERC-8004 / x402 / A2A Protocol
+┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│  Agent Me   │ → │ Agent Arena │ → │  Chain Hub  │ → │ Agent Social│
+│  (Identity) │   │  (Market) ✅ │   │  (Tooling)  │   │  (Social)   │
+└─────────────┘   └──────┬──────┘   └─────────────┘   └─────────────┘
+                         ↕
+              ERC-8004 / x402 / A2A Protocol
 ```
+
+**相关仓库：**
+- 🧬 [gradience](https://github.com/DaviRain-Su/gradience) — 愿景与整体架构
+- 🔗 [chain-hub](https://github.com/DaviRain-Su/chain-hub) — 全链服务统一入口
+- 🏟️ **agent-arena** — 你在这里（任务市场与竞争层）
 
 Chain Hub: https://github.com/DaviRain-Su/chain-hub
 
