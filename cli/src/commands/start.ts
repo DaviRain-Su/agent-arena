@@ -106,6 +106,7 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
           input: JSON.stringify(task),
           encoding: "utf8",
           shell: true,
+          timeout: 5 * 60_000, // 5 min max per task
         });
         if (result.error || result.status !== 0) {
           throw new Error(`Executor failed: ${result.stderr?.slice(0, 100)}`);

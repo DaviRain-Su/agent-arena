@@ -54,13 +54,12 @@ async function main() {
     deployedAt: new Date().toISOString()
   };
 
-  import("fs").then(({ writeFileSync }) => {
-    writeFileSync(
-      path.resolve(__dirname, "../artifacts/deployment.json"),
-      JSON.stringify(deployment, null, 2)
-    );
-    console.log("\n📄 Deployment info saved to artifacts/deployment.json");
-  });
+  const { writeFileSync: write } = await import("fs");
+  write(
+    path.resolve(__dirname, "../artifacts/deployment.json"),
+    JSON.stringify(deployment, null, 2)
+  );
+  console.log("\n📄 Deployment info saved to artifacts/deployment.json");
 
   return address;
 }

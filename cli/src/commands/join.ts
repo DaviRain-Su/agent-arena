@@ -31,11 +31,12 @@ const CONTRACT_DEFAULTS = {
 
 const ABI = [
   "function registerAgent(string agentId, string metadata, address ownerAddr) external",
-  "function agents(address) view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 registeredAt, bool registered)",
+  "function agents(address) view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 tasksAttempted, bool registered)",
 ];
 
-const KEYSTORE_DIR  = path.join(os.homedir(), ".arena", "keys");
-const JOIN_PASSWORD = "arena-join-wallet";
+import { randomBytes } from "node:crypto";
+
+const KEYSTORE_DIR = path.join(os.homedir(), ".arena", "keys");
 
 export async function cmdJoin(opts: {
   onchainOsAddress?: string;   // ← from OKX OnchainOS TEE wallet
@@ -82,6 +83,16 @@ export async function cmdJoin(opts: {
     // ── Path B: generate / reuse local keystore wallet ───────────────────────
     mkdirSync(KEYSTORE_DIR, { recursive: true });
 
+    const pwdFile = path.join(KEYSTORE_DIR, ".password");
+    const resolvePassword = (): string => {
+      if (process.env.ARENA_PASSWORD) return process.env.ARENA_PASSWORD;
+      if (existsSync(pwdFile)) return readFileSync(pwdFile, "utf8").trim();
+      const pwd = randomBytes(24).toString("base64");
+      writeFileSync(pwdFile, pwd, { mode: 0o600 });
+      return pwd;
+    };
+    const walletPassword = resolvePassword();
+
     const existingAddr = config.get("walletAddress");
     const existingBack = config.get("walletBackend");
     const keystorePath = (existingAddr && existingBack === "local")
@@ -91,29 +102,28 @@ export async function cmdJoin(opts: {
     if (keystorePath && existsSync(keystorePath)) {
       const genSpinner = ora("Loading existing local wallet...").start();
       try {
-        const w = await ethers.Wallet.fromEncryptedJson(readFileSync(keystorePath, "utf8"), JOIN_PASSWORD);
+        const w = await ethers.Wallet.fromEncryptedJson(readFileSync(keystorePath, "utf8"), walletPassword);
         signerForReg  = (w as ethers.Wallet).connect(provider);
         agentAddress  = (w as ethers.Wallet).address;
         walletBackend = "local";
-        localPassword = JOIN_PASSWORD;
+        localPassword = walletPassword;
         genSpinner.succeed(chalk.green(`Local wallet loaded: ${agentAddress}`));
       } catch {
-        // password mismatch — generate fresh
         const genSpinner2 = ora("Generating new agent wallet...").start();
-        const newWallet   = await createLocalWallet(JOIN_PASSWORD);
+        const newWallet   = await createLocalWallet(walletPassword);
         signerForReg  = (newWallet as ethers.Wallet).connect(provider);
         agentAddress  = (newWallet as ethers.Wallet).address;
         walletBackend = "local";
-        localPassword = JOIN_PASSWORD;
+        localPassword = walletPassword;
         genSpinner2.succeed(chalk.green(`New wallet: ${agentAddress}`));
       }
     } else {
       const genSpinner = ora("Generating new agent wallet...").start();
-      const newWallet  = await createLocalWallet(JOIN_PASSWORD);
+      const newWallet  = await createLocalWallet(walletPassword);
       signerForReg  = (newWallet as ethers.Wallet).connect(provider);
       agentAddress  = (newWallet as ethers.Wallet).address;
       walletBackend = "local";
-      localPassword = JOIN_PASSWORD;
+      localPassword = walletPassword;
       genSpinner.succeed(chalk.green(`New wallet: ${agentAddress}`));
       console.log(chalk.dim(`  Keystore: ${path.join(KEYSTORE_DIR, agentAddress.toLowerCase() + ".json")}`));
     }

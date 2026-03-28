@@ -53,6 +53,7 @@ export function ArenaPage() {
   const [posting, setPosting] = useState(false);
 
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // My Agent reputation state
   const [myReputation, setMyReputation] = useState<{
@@ -186,7 +187,7 @@ export function ArenaPage() {
       const evalStandard = evalType === "judge_prompt"
         ? JSON.stringify({ type: "judge_prompt", prompt: evalPrompt || "Evaluate quality and correctness." })
         : JSON.stringify({ type: evalType });
-      const evalCID = `eval:${btoa(evalStandard).slice(0, 32)}`;
+      const evalCID = `eval:${btoa(evalStandard)}`;
       const tx = await contract.postTask(taskDesc, evalCID, deadline, { value: reward });
       setTxHash(tx.hash);
       await tx.wait();
@@ -194,6 +195,8 @@ export function ArenaPage() {
       setTaskDesc(""); setRewardOKB("0.01"); setEvalType("manual"); setEvalPrompt("");
       await loadData();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErrorMsg(`Post failed: ${msg.slice(0, 100)}`);
       console.error("Post failed", e);
     } finally {
       setPosting(false);
@@ -209,6 +212,8 @@ export function ArenaPage() {
       await tx.wait();
       await loadData();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErrorMsg(`Apply failed: ${msg.slice(0, 100)}`);
       console.error("Apply failed", e);
     }
   };
@@ -222,6 +227,8 @@ export function ArenaPage() {
       await tx.wait();
       await loadData();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErrorMsg(`Assign failed: ${msg.slice(0, 100)}`);
       console.error("Assign failed", e);
     }
   };
@@ -239,6 +246,8 @@ export function ArenaPage() {
       setSubmitResultState(null);
       await loadData();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErrorMsg(`Submit failed: ${msg.slice(0, 100)}`);
       console.error("Submit failed", e);
     }
   };
@@ -372,6 +381,14 @@ export function ArenaPage() {
             >
               {txHash.slice(0, 10)}... →
             </a>
+          </div>
+        )}
+
+        {/* Error notification */}
+        {errorMsg && (
+          <div className="border border-red-500/40 bg-red-500/10 p-3 text-sm flex items-center justify-between">
+            <span className="text-red-400">❌ {errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)} className="text-xs text-white/40 hover:text-white ml-4">✕</button>
           </div>
         )}
 
