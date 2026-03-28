@@ -233,12 +233,12 @@ export default function APIReferencePage() {
       <p className="text-sm text-white/40 mb-4">
         {lang === "en" ? "Contract:" : "合约："}{" "}
         <a
-          href="https://www.oklink.com/x-layer-testnet/address/0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18"
+          href="https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09"
           target="_blank"
           rel="noreferrer"
           className="font-mono text-xs text-white/50 hover:text-white transition"
         >
-          0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18
+          0xad869d5901A64F9062bD352CdBc75e35Cd876E09
         </a>
       </p>
 
