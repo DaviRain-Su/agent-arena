@@ -2,5 +2,8 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_CONTRACT_ADDRESS": "0x90405AE28069659c35497407Da3f96110aF1116A"
+  }
 }
