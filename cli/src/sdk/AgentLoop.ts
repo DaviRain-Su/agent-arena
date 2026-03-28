@@ -25,6 +25,8 @@ export class AgentLoop {
   private running = false;
   /** Tasks that failed execution — don't retry them */
   private failedTaskIds = new Set<number>();
+  /** Tasks that failed to apply (e.g. Poster cannot apply) — skip permanently */
+  private skipApplyIds = new Set<number>();
   /** Tasks waiting for external execution result */
   private pendingExternalTasks = new Map<number, Task>();
 
@@ -138,8 +140,16 @@ export class AgentLoop {
       limit: 10,
     });
 
+    const myAddress = (await this.client.getAddress()).toLowerCase();
+
     for (const task of tasks) {
-      if (appliedIds.has(task.id)) continue; // already applied
+      if (appliedIds.has(task.id)) continue;
+      if (this.skipApplyIds.has(task.id)) continue;
+      // Skip own tasks (Poster cannot apply)
+      if (task.poster?.toLowerCase() === myAddress) {
+        this.skipApplyIds.add(task.id);
+        continue;
+      }
 
       const confidence = await this.cfg.evaluate(task);
       if (confidence >= this.cfg.minConfidence) {
@@ -147,7 +157,12 @@ export class AgentLoop {
           const txHash = await this.client.applyForTask(task.id);
           this.cfg.log(`Applied for task #${task.id} (confidence=${confidence.toFixed(2)}) → ${txHash.slice(0, 18)}...`);
         } catch (e: unknown) {
-          this.cfg.log(`Apply failed for #${task.id}: ${e instanceof Error ? e.message : String(e)}`);
+          const msg = e instanceof Error ? e.message : String(e);
+          // Permanent failures — don't retry
+          if (msg.includes("Poster cannot apply") || msg.includes("Already applied") || msg.includes("past deadline")) {
+            this.skipApplyIds.add(task.id);
+          }
+          this.cfg.log(`Apply failed for #${task.id}: ${msg.slice(0, 80)}`);
         }
       } else {
         this.cfg.log(`Skipped task #${task.id} (confidence=${confidence.toFixed(2)} < ${this.cfg.minConfidence})`);
