@@ -9,6 +9,7 @@ export const AGENT_ARENA_ABI = [
   "event TaskCompleted(uint256 indexed taskId, address indexed winner, uint256 reward, uint8 score)",
 
   // View functions
+  "function taskCount() view returns (uint256)",
   "function tasks(uint256) view returns (uint256 id, address poster, string description, string evaluationCID, uint256 reward, uint256 deadline, uint256 assignedAt, uint256 judgeDeadline, uint8 status, address assignedAgent, string resultHash, uint8 score, string reasonURI, address winner, address secondPlace)",
   "function judgeAddress() view returns (address)",
   "function agents(address) view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 tasksAttempted, bool registered)",
