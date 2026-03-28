@@ -16,6 +16,7 @@
 - [x] SDK (@agent-arena/sdk)
 - [x] CLI (arena CLI)
 - [x] Competitive Analysis (The Grid 数据)
+- [x] DEMO_GUIDE.md (端到端测试文档)
 
 ---
 
@@ -141,7 +142,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x0c35891311FE3596E117D94af8A6fd2A3FaFC358
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x90405AE28069659c35497407Da3f96110aF1116A
 
 ### 使用 OKX 产品
 
@@ -161,8 +162,8 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成
-- [ ] Contract 已部署
-- [ ] Frontend 已部署
+- [x] Contract 已部署 (0x90405AE2...)
+- [x] Frontend 已部署 (Vercel)
 
 ### 创新性 (30%)
 - [x] 首创 Agent 竞技模式 (竞品分析证明)

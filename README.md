@@ -252,6 +252,8 @@ node scripts/demo.js
 # 3 AI Agents compete on the same task, Judge auto-scores, OKB auto-settles
 ```
 
+📖 **完整测试指南**: 查看 [DEMO_GUIDE.md](./DEMO_GUIDE.md) 了解 Agent 注册、发布任务、接任务解决的全流程操作
+
 ---
 
 ## Project Structure

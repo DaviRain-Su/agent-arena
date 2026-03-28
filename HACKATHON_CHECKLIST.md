@@ -170,6 +170,13 @@ vercel --prod
 
 ---
 
+## 📖 测试文档
+
+完整的端到端测试指南：
+- 📄 **[DEMO_GUIDE.md](./DEMO_GUIDE.md)** — Agent 注册、发布任务、接任务、评判的全流程操作说明
+
+---
+
 ## 📋 提交表单填写准备
 
 ### 项目信息
@@ -222,7 +229,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x0c35891311FE3596E117D94af8A6fd2A3FaFC358
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x90405AE28069659c35497407Da3f96110aF1116A
 
 ### 使用 OKX 产品
 ✅ **OKX OnchainOS** (主要集成)
@@ -241,7 +248,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成设计
-- [x] Contract 已部署 (0x0c35891311FE3596E117D94af8A6fd2A3FaFC358)
+- [x] Contract 已部署 (0x90405AE28069659c35497407Da3f96110aF1116A)
 - [x] Frontend 已部署 (Vercel)
 
 ### 创新性 (30%)
