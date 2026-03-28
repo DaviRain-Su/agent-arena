@@ -1,15 +1,12 @@
 // scripts/demo.js — Agent Arena End-to-End Demo
 // 3 Claude Agents compete on a real coding task with test case execution
-// Uses OKX OnchainOS for Agent wallet management (falls back to local wallet)
 //
 // Usage:
-//   node scripts/demo.js              (OnchainOS enabled)
-//   USE_ONCHAINOS=false node scripts/demo.js  (local wallet fallback)
+//   node scripts/demo.js
 
 import { ethers } from "ethers";
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { execSync, spawnSync } from "child_process";
 import { createRequire } from "module";
 import { createHash } from "crypto";
 import path from "path";
@@ -47,7 +44,6 @@ const RPC_URL         = process.env.XLAYER_RPC || "https://testrpc.xlayer.tech/t
 const PRIVATE_KEY     = process.env.PRIVATE_KEY;
 const CONTRACT_ADDR   = process.env.CONTRACT_ADDRESS;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
-const USE_ONCHAINOS   = process.env.USE_ONCHAINOS !== "false";
 const XLAYER_CHAIN_ID = "1952";
 
 // 3 Agent identities
@@ -151,29 +147,15 @@ function calcTestScore(results) {
   return calcScore(results, EVALUATION_STANDARD.scoring.test_weight);
 }
 
-// ─── OnchainOS helpers ────────────────────────────────────────────────────────
-function onchainos(args) {
-  const result = spawnSync("onchainos", args, { encoding: "utf8", env: { ...process.env } });
-  if (result.error) return { ok: false, stdout: "", stderr: result.error.message, code: -1 };
-  return { ok: true, stdout: result.stdout || "", stderr: result.stderr || "", code: result.status };
-}
-
+// ─── Agent wallet derivation ──────────────────────────────────────────────────
+// Demo uses deterministic HD-derived wallets so each agent has a unique address.
+// OnchainOS is intentionally NOT used here: it's a single-user TEE wallet bound
+// to an email — unsuitable for programmatically creating 3 agent wallets.
+// OnchainOS integration lives in `arena join` CLI for real user onboarding.
 async function getAgentWallet(agentId, provider) {
-  if (!USE_ONCHAINOS) {
-    const seed = ethers.keccak256(ethers.toUtf8Bytes(`agent:${agentId}:${PRIVATE_KEY?.slice(0, 16)}`));
-    return new ethers.Wallet(seed, provider);
-  }
-  const status = onchainos(["wallet", "status"]);
-  if (!status.ok || status.code !== 0) {
-    const seed = ethers.keccak256(ethers.toUtf8Bytes(`agent:${agentId}:${PRIVATE_KEY?.slice(0, 16)}`));
-    return new ethers.Wallet(seed, provider);
-  }
-  const addrResult = onchainos(["wallet", "addresses", "--chain", XLAYER_CHAIN_ID]);
-  if (addrResult.ok) {
-    const match = addrResult.stdout.match(/0x[a-fA-F0-9]{40}/);
-    if (match) return { address: match[0], isOnchainOS: true };
-  }
-  const seed = ethers.keccak256(ethers.toUtf8Bytes(`agent:${agentId}:${PRIVATE_KEY?.slice(0, 16)}`));
+  // Derive a unique child wallet per agentId from the deployer mnemonic / key.
+  // Using keccak256 as a deterministic seed so wallets are stable across runs.
+  const seed = ethers.keccak256(ethers.toUtf8Bytes(`arena:demo:agent:${agentId}`));
   return new ethers.Wallet(seed, provider);
 }
 
@@ -199,7 +181,8 @@ async function main() {
   console.log(`\n  ${Di("Contract:")}  ${CONTRACT_ADDR}`);
   console.log(`  ${Di("Judge:")}     ${judgeWallet.address}`);
   console.log(`  ${Di("Network:")}   X-Layer Testnet (chainId: ${XLAYER_CHAIN_ID})`);
-  console.log(`  ${Di("Wallet:")}    ${USE_ONCHAINOS ? G("OKX Agentic Wallet (TEE)") : Y("Local Derived Wallet")}`);
+  console.log(`  ${Di("Wallet:")}    ${Y("HD-derived demo wallets (deterministic)")}`);
+  console.log(`  ${Di("Note:")}      ${Di("OnchainOS is for real user agents (arena join), not demo scripts")}`);
 
   // ── Step 1: Agent Wallets ────────────────────────────────────────────────────
   sep("Step 1 — Initialize Agent Wallets");
@@ -432,7 +415,7 @@ Return ONLY valid JSON, no explanation outside JSON:
   console.log(`  ${Di("Reward:")}  ${ethers.formatEther(REWARD)} OKB auto-paid on-chain`);
   console.log(`  ${Di("2nd:")}     ${secondPlace.agentName} received ${ethers.formatEther(consolation)} OKB consolation`);
   console.log(`  ${Di("Judge:")}   Reason stored on-chain: ${reasonURI}`);
-  console.log(`  ${Di("Wallet:")}  ${USE_ONCHAINOS ? "OKX Agentic Wallet (TEE)" : "Local derived wallet"}`);
+  console.log(`  ${Di("Wallet:")}  HD-derived demo wallets`);
 
   sep("📈 Network State");
   const agentCount = await contract.getAgentCount();
