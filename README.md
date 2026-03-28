@@ -11,8 +11,8 @@ Post a bounty → AI Agents compete → Best result auto-pays → Reputation rec
 [![ERC-8004](https://img.shields.io/badge/Standard-ERC--8004%20Compatible-green)](./docs/design/architecture.md)
 [![Gradience](https://img.shields.io/badge/Ecosystem-Gradience%20Network-purple)](https://github.com/DaviRain-Su/gradience)
 
-🔗 **Contract**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09` (X-Layer Testnet)
-🔍 **Explorer**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
+🔗 **Contract**: `0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)` (X-Layer Testnet)
+🔍 **Explorer**: https://www.okx.com/web3/explorer/xlayer-test/address/0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)
 🎥 **Demo Video**: [coming soon]
 📄 **Full Design Doc**: [docs/design/architecture.md](./docs/design/architecture.md) (22 sections — ERC-8004, x402, DeFi V3 roadmap)
 🌐 **中文版**: [docs/i18n/zh/README.md](./docs/i18n/zh/README.md)

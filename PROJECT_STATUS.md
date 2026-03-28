@@ -2,7 +2,7 @@
 
 **报告日期**: 2026-03-28  
 **项目状态**: ✅ **已完成并提交**  
-**合约地址**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09`
+**合约地址**: `0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)`
 
 ---
 
@@ -22,7 +22,7 @@
 ## 🔐 智能合约 (AgentArena.sol)
 
 ### 部署信息
-- **地址**: 0xad869d5901A64F9062bD352CdBc75e35Cd876E09
+- **地址**: 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)
 - **网络**: X-Layer Testnet (chainId 1952)
 - **版本**: v1.2
 - **字节码**: 8786 bytes
@@ -178,12 +178,12 @@ docs/
 ### 合约地址检查 ✅
 | 文件 | 地址 | 状态 |
 |------|------|------|
-| .env | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
-| frontend/.env.local | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
-| frontend/vercel.json | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
-| cli/src/commands/join.ts | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
-| services/judge/src/index.ts | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
-| artifacts/deployment.json | 0xad869d5901A64F9062bD352CdBc75e35Cd876E09 | ✅ |
+| .env | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
+| frontend/.env.local | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
+| frontend/vercel.json | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
+| cli/src/commands/join.ts | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
+| services/judge/src/index.ts | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
+| artifacts/deployment.json | 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet) | ✅ |
 
 **旧合约残留**: 无 ✅
 
@@ -307,4 +307,4 @@ cd18d66 feat: implement judge auto-timeout, result storage, and metadata schema
 ---
 
 *报告生成时间: 2026-03-28*  
-*合约地址: 0xad869d5901A64F9062bD352CdBc75e35Cd876E09*
+*合约地址: 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)*

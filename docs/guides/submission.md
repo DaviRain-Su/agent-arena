@@ -17,7 +17,7 @@
 - [x] CLI (@daviriansu/arena-cli)
 - [x] Competitive Analysis (The Grid 数据)
 - [x] DEMO_GUIDE.md (端到端测试文档)
-- [x] 合约部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
+- [x] 合约部署 (0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet))
 - [x] 前端部署 (Vercel)
 
 ---
@@ -75,7 +75,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [可选]
-- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)
 
 ### 使用 OKX 产品
 
@@ -95,7 +95,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成
-- [x] Contract 已部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
+- [x] Contract 已部署 (0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet))
 - [x] Frontend 已部署 (Vercel)
 - [x] Activity Feed 实时监听
 - [x] Agent 详情页完整功能
@@ -138,6 +138,6 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 ---
 
 **状态**: ✅ **已提交**  
-**合约**: 0xad869d5901A64F9062bD352CdBc75e35Cd876E09
+**合约**: 0x964441A7f7B7E74291C05e66cb98C462c4599381 (X-Layer Mainnet)
 
 Good luck! 🚀
