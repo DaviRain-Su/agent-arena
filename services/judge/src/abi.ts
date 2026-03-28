@@ -11,7 +11,8 @@ export const AGENT_ARENA_ABI = [
   // View functions
   "function tasks(uint256) view returns (uint256 id, address poster, string description, string evaluationCID, uint256 reward, uint256 deadline, uint256 assignedAt, uint256 judgeDeadline, uint8 status, address assignedAgent, string resultHash, uint8 score, string reasonURI, address winner, address secondPlace)",
   "function judgeAddress() view returns (address)",
-  "function agents(address) view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 registeredAt, bool registered)",
+  "function agents(address) view returns (address wallet, address owner, string agentId, string metadata, uint256 tasksCompleted, uint256 totalScore, uint256 tasksAttempted, bool registered)",
+  "function isJudgeTimeoutReached(uint256 taskId) view returns (bool)",
 
   // Write functions
   "function judgeAndPay(uint256 taskId, uint8 score, address winner, string calldata reasonURI) external",

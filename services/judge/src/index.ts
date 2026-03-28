@@ -180,7 +180,7 @@ class JudgeService {
         continue;
       }
       try {
-        const refundable: boolean = await this.contract.isRefundable(taskId);
+        const refundable: boolean = await this.contract.isJudgeTimeoutReached(taskId);
         if (refundable) {
           console.log(`⏰ Task #${taskId} judge deadline exceeded — calling forceRefund()`);
           const tx = await this.contract.forceRefund(taskId);

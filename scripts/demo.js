@@ -248,7 +248,9 @@ async function main() {
   sep("Step 3 — Post Task with OKB Escrow");
   const REWARD   = ethers.parseEther("0.01");
   const DEADLINE = Math.floor(Date.now() / 1000) + 3600;
-  const evalCID  = "eval:" + createHash("sha256").update(JSON.stringify(EVALUATION_STANDARD)).digest("hex").slice(0, 16);
+  // Encode EVALUATION_STANDARD as base64 JSON so the judge service can parse
+  // test cases directly from the on-chain field (format: eval:<base64-json>)
+  const evalCID  = "eval:" + Buffer.from(JSON.stringify(EVALUATION_STANDARD)).toString("base64");
 
   console.log(`  ${Di("Task:")}     TypeScript deepMerge function`);
   console.log(`  ${Di("Reward:")}   ${ethers.formatEther(REWARD)} OKB`);
@@ -386,15 +388,18 @@ Return ONLY valid JSON, no explanation outside JSON:
     if (s.reasoning) console.log(`     ${Di(s.reasoning.slice(0, 80))}`);
   }
 
+  if (finalScores.length === 0) throw new Error("No agents completed the task");
   const winner = finalScores[0];
-  const secondPlace = finalScores[1];
+  const secondPlace = finalScores.length >= 2 ? finalScores[1] : null;
   console.log(`\n  ${c.cyan}${c.bold}🏆 WINNER: ${winner.agentName} (${winner.total}/100)${c.reset}`);
 
   // ── Step 8: On-Chain Settlement ──────────────────────────────────────────────
   sep("Step 8 — On-Chain Settlement");
 
   const winnerAddr = agentWallets[winner.agentIndex].address || await agentWallets[winner.agentIndex].getAddress?.();
-  const secondAddr = agentWallets[secondPlace.agentIndex].address || await agentWallets[secondPlace.agentIndex].getAddress?.();
+  const secondAddr = secondPlace
+    ? (agentWallets[secondPlace.agentIndex].address || await agentWallets[secondPlace.agentIndex].getAddress?.())
+    : null;
 
   // Assign to winner
   process.stdout.write(`  Assigning task to winner ... `);
@@ -404,7 +409,8 @@ Return ONLY valid JSON, no explanation outside JSON:
 
   // Winner submits result
   process.stdout.write(`  Winner submitting result ... `);
-  const resultHash = `eval:${createHash("sha256").update(winner.code).digest("hex").slice(0, 16)}`;
+  // Encode winner's code as base64 so the judge service can decode it via fetchSubmission()
+  const resultHash = `eval:${Buffer.from(winner.code).toString("base64")}`;
   const submitTx = await agentContracts[winner.agentIndex].submitResult(taskId, resultHash);
   await submitTx.wait();
   console.log(G("✓"));
@@ -417,12 +423,14 @@ Return ONLY valid JSON, no explanation outside JSON:
   console.log(G("✓"));
   console.log(`  ${Di("Tx:")} https://www.okx.com/web3/explorer/xlayer-test/tx/${judgeTx.hash}`);
 
-  // Consolation prize (10%)
-  const consolation = REWARD / 10n;
-  process.stdout.write(`  Consolation prize (10%) to ${secondPlace.agentName} ... `);
-  const consoleTx = await contract.payConsolation(taskId, secondAddr, { value: consolation });
-  await consoleTx.wait();
-  console.log(G("✓"));
+  // Consolation prize (10%) — only if there was a second-place agent
+  if (secondPlace && secondAddr) {
+    const consolation = REWARD / 10n;
+    process.stdout.write(`  Consolation prize (10%) to ${secondPlace.agentName} ... `);
+    const consoleTx = await contract.payConsolation(taskId, secondAddr, { value: consolation });
+    await consoleTx.wait();
+    console.log(G("✓"));
+  }
 
   // ── Summary ──────────────────────────────────────────────────────────────────
   sep("🎉 Demo Complete!", c.green);
