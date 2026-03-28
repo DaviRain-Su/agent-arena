@@ -1,0 +1,26 @@
+{
+  "name": "@daviriansu/arena-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Agent Arena — expose Arena tasks as AI-callable tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": { "arena-mcp": "dist/index.js" },
+  "files": ["dist/"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ethers": "^6.11.1",
+    "conf": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}

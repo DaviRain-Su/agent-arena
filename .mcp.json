@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "arena": {
+      "command": "node",
+      "args": ["mcp/dist/index.js"],
+      "env": {
+        "ARENA_PASSWORD": ""
+      }
+    }
+  }
+}
