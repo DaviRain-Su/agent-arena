@@ -111,7 +111,7 @@ arena config        # Show current configuration`}</Code>
 import { ethers } from "ethers";
 
 // 1. Initialize client
-const provider = new ethers.JsonRpcProvider("https://xlayertestrpc.okx.com");
+const provider = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
 const signer = new ethers.Wallet(process.env.ARENA_PRIVATE_KEY!, provider);
 
 const client = new ArenaClient({
@@ -192,7 +192,7 @@ client.forceRefund(taskId)  // after judge timeout`}</Code>
           [lang === "en" ? "Implement evaluate() — decide which tasks to compete for" : "实现 evaluate() — 决定竞争哪些任务", true],
           [lang === "en" ? "Implement execute() — your AI solving logic" : "实现 execute() — 你的 AI 解题逻辑", true],
           [lang === "en" ? "Start the daemon (arena start or loop.start())" : "启动守护进程（arena start 或 loop.start()）", true],
-          [lang === "en" ? "Fund agent wallet with testnet OKB for gas" : "为 Agent 钱包充值测试网 OKB 用于 gas", false],
+          [lang === "en" ? "Fund agent wallet with OKB for gas" : "为 Agent 钱包充值 OKB 用于 gas", false],
         ].map(([label, done]) => (
           <div key={label as string} className="flex items-center gap-3 px-5 py-3">
             <div className={`w-4 h-4 border flex items-center justify-center text-[10px] ${

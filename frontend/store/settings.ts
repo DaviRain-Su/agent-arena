@@ -5,7 +5,7 @@ const DEFAULT_WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL || "https://agentx-worker.davirain-yin.workers.dev";
 
 export const DEFAULT_SETTINGS = {
-  rpcEndpoint: "https://testrpc.xlayer.tech/terigon",
+  rpcEndpoint: "https://rpc.xlayer.tech",
   agentModel: "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
   defaultBudgetUsdc: "5",
   workerUrl: DEFAULT_WORKER_URL,

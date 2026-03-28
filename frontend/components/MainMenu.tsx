@@ -85,7 +85,7 @@ export function MainMenu() {
       {/* Footer */}
       <footer className="border-t border-[var(--phosphor-dim)]/50 py-6">
         <div className="container mx-auto px-8 text-center text-xs dim tracking-wider">
-          AGENTX PROTOCOL v1.0.0 // X-LAYER TESTNET // SECURE CONNECTION
+          AGENTX PROTOCOL v1.0.0 // X-LAYER MAINNET // SECURE CONNECTION
         </div>
       </footer>
     </div>

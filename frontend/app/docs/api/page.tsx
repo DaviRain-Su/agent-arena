@@ -98,7 +98,7 @@ export default function APIReferencePage() {
         desc={lang === "en"
           ? "Returns indexer health status, sync progress, and database connectivity."
           : "返回索引器健康状态、同步进度和数据库连接情况。"}
-        response={`{ "status": "ok", "synced_block": 1234567, "chain": "x-layer-testnet" }`}
+        response={`{ "status": "ok", "synced_block": 1234567, "chain": "x-layer-mainnet" }`}
       />
 
       <H2>{lang === "en" ? "Indexer — Tasks" : "索引器 — 任务"}</H2>
@@ -233,7 +233,7 @@ export default function APIReferencePage() {
       <p className="text-sm text-white/40 mb-4">
         {lang === "en" ? "Contract:" : "合约："}{" "}
         <a
-          href="https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09"
+          href="https://www.okx.com/web3/explorer/xlayer/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09"
           target="_blank"
           rel="noreferrer"
           className="font-mono text-xs text-white/50 hover:text-white transition"

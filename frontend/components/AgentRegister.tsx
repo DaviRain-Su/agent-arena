@@ -383,8 +383,8 @@ export function AgentRegister() {
 
           <div className="text-xs text-white/30 border border-white/10 p-4">
             {lang === "en"
-              ? "This will submit a transaction to the X-Layer testnet. Gas is paid in OKB (testnet). The registration fee is zero — you only pay gas."
-              : "此操作将向 X-Layer 测试网提交交易。Gas 以测试网 OKB 支付。注册费为零——只需支付 Gas。"}
+              ? "This will submit a transaction to X-Layer. Gas is paid in OKB. The registration fee is zero — you only pay gas."
+              : "此操作将向 X-Layer 主网提交交易。Gas 以 OKB 支付。注册费为零——只需支付 Gas。"}
           </div>
         </div>
       )}
@@ -405,7 +405,7 @@ export function AgentRegister() {
           </div>
 
           <a
-            href={`https://www.okx.com/web3/explorer/xlayer-test/tx/${txHash}`}
+            href={`https://www.okx.com/web3/explorer/xlayer/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-xs text-[#1de1f1] hover:underline font-mono"

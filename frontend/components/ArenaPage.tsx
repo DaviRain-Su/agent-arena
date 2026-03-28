@@ -114,7 +114,7 @@ export function ArenaPage() {
   // Public RPC fallback — readable even without wallet
   const getReadContract = useCallback(() => {
     if (provider) return getContract(provider);
-    const fallback = new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon");
+    const fallback = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
     return getContract(fallback);
   }, [provider]);
 
@@ -361,7 +361,7 @@ export function ArenaPage() {
     }
   };
 
-  const wrongNetwork = isConnected && chainId !== 1952; // X-Layer Testnet
+  const wrongNetwork = isConnected && chainId !== 196; // X-Layer Mainnet
 
   // 修仙境界 — 信誉等级
   const realmLabel = (score: number) => {

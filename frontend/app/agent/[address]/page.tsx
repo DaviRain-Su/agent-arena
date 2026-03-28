@@ -55,7 +55,7 @@ export default function AgentDetailPage() {
     if (!agentAddress || !ethers.isAddress(agentAddress)) return;
     setLoading(true);
     try {
-      const rpc = new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon");
+      const rpc = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
       const contract = getContract(rpc);
 
       const [info, rep] = await Promise.all([

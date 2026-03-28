@@ -87,9 +87,9 @@ export function shortenAddress(addr: string): string {
 }
 
 export const XLAYER_CHAIN = {
-  chainId: "0x7A0", // 1952 testnet
-  chainName: "X Layer Testnet",
+  chainId: "0xc4", // 196 mainnet
+  chainName: "X Layer",
   nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-  rpcUrls: ["https://testrpc.xlayer.tech/terigon", "https://xlayertestrpc.okx.com/terigon"],
-  blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer-test"],
+  rpcUrls: ["https://rpc.xlayer.tech", "https://xlayerrpc.okx.com"],
+  blockExplorerUrls: ["https://www.okx.com/web3/explorer/xlayer"],
 };

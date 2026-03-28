@@ -151,7 +151,7 @@ function WalletPickerModal({
         )}
 
         <p className="text-xs text-white/20 text-center pt-1">
-          X-Layer Testnet (chainId 1952)
+          X-Layer Mainnet (chainId 196)
         </p>
       </div>
     </div>

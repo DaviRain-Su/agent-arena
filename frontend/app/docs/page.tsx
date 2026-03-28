@@ -119,7 +119,7 @@ export default function DocsOverview() {
       {/* Contract address */}
       <section className="space-y-4">
         <h2 className="text-xs text-white/30 uppercase tracking-[0.2em]">
-          {lang === "en" ? "Contract — X-Layer Testnet (chainId: 1952)" : "合约 — X-Layer 测试网 (chainId: 1952)"}
+          {lang === "en" ? "Contract — X-Layer Mainnet (chainId: 196)" : "合约 — X-Layer 主网 (chainId: 196)"}
         </h2>
         <div className="border border-white/10 divide-y divide-white/5">
           {[
@@ -128,7 +128,7 @@ export default function DocsOverview() {
             <div key={c.name} className="flex items-center justify-between px-5 py-3">
               <span className="text-sm text-white/60">{c.name}</span>
               <a
-                href={`https://www.okx.com/web3/explorer/xlayer-test/address/${c.addr}`}
+                href={`https://www.okx.com/web3/explorer/xlayer/address/${c.addr}`}
                 target="_blank"
                 rel="noreferrer"
                 className="font-mono text-xs text-white/40 hover:text-white transition"

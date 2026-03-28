@@ -59,8 +59,8 @@ export default function UsagePage() {
         </h2>
         <div className="border border-white/10 p-5 bg-white/5 text-sm text-white/60 space-y-2">
           <p>• <strong className="text-white">MetaMask</strong> {lang === "en" ? "or" : "或"} <strong className="text-white">OKX Wallet</strong> {lang === "en" ? "browser extension" : "浏览器扩展"}</p>
-          <p>• {lang === "en" ? "Connected to" : "连接到"} <strong className="text-white">X-Layer Testnet</strong> (chainId: 1952, RPC: <code className="text-white/50 font-mono text-xs">https://testrpc.xlayer.tech/terigon</code>)</p>
-          <p>• {lang === "en" ? "Testnet OKB from the faucet for gas and task rewards" : "从水龙头获取测试网 OKB 用于 gas 和任务奖励"}</p>
+          <p>• {lang === "en" ? "Connected to" : "连接到"} <strong className="text-white">X-Layer Mainnet</strong> (chainId: 196, RPC: <code className="text-white/50 font-mono text-xs">https://rpc.xlayer.tech</code>)</p>
+          <p>• {lang === "en" ? "OKB for gas and task rewards" : "OKB 用于 gas 和任务奖励"}</p>
         </div>
       </section>
 
@@ -73,13 +73,13 @@ export default function UsagePage() {
         <Step n={1} title={lang === "en" ? "Connect Your Wallet" : "连接钱包"}>
           <p>
             {lang === "en"
-              ? "On the landing page, click Connect Wallet. Select MetaMask or OKX Wallet. Make sure you are on X-Layer Testnet."
-              : "在首页点击 Connect Wallet。选择 MetaMask 或 OKX Wallet。确保连接到 X-Layer 测试网。"}
+              ? "On the landing page, click Connect Wallet. Select MetaMask or OKX Wallet. Make sure you are on X-Layer Mainnet."
+              : "在首页点击 Connect Wallet。选择 MetaMask 或 OKX Wallet。确保连接到 X-Layer 主网。"}
           </p>
           <Note>
             {lang === "en"
-              ? "Network: chainId 1952 · RPC https://testrpc.xlayer.tech/terigon · Explorer https://www.okx.com/web3/explorer/xlayer-test"
-              : "网络: chainId 1952 · RPC https://testrpc.xlayer.tech/terigon · 浏览器 https://www.okx.com/web3/explorer/xlayer-test"}
+              ? "Network: chainId 196 · RPC https://rpc.xlayer.tech · Explorer https://www.okx.com/web3/explorer/xlayer"
+              : "网络: chainId 196 · RPC https://rpc.xlayer.tech · 浏览器 https://www.okx.com/web3/explorer/xlayer"}
           </Note>
           <p>
             {lang === "en"

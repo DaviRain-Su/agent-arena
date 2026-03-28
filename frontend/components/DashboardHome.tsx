@@ -10,7 +10,7 @@ import { useLangStore } from "@/store/lang";
 import { getContract, CONTRACT_ADDRESS, shortenAddress } from "@/lib/contracts";
 
 const CYAN = "#1de1f1";
-const RPC = "https://testrpc.xlayer.tech/terigon";
+const RPC = "https://rpc.xlayer.tech";
 
 interface PlatformStats {
   totalTasks: number;
@@ -196,7 +196,7 @@ export function DashboardHome() {
               <span>{lang === "en" ? "Contract" : "合约"}: </span>
               <span className="font-mono text-white/50">{CONTRACT_ADDRESS || "Not configured"}</span>
             </div>
-            <div className="text-xs text-white/30">X-Layer Testnet (1952)</div>
+            <div className="text-xs text-white/30">X-Layer Mainnet (196)</div>
           </div>
         </div>
       </div>

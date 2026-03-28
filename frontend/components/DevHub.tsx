@@ -116,7 +116,7 @@ const QUICKSTART_STEPS = [
     code: `import { ArenaClient } from "@agent-arena/sdk";
 import { ethers } from "ethers";
 
-const provider = new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon");
+const provider = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 
 const client = new ArenaClient({
@@ -176,7 +176,7 @@ export function DevHub() {
 
         <div className="flex flex-wrap gap-3 pt-2">
           <a
-            href={`https://www.okx.com/web3/explorer/xlayer-test/address/${CONTRACT_ADDRESS}`}
+            href={`https://www.okx.com/web3/explorer/xlayer/address/${CONTRACT_ADDRESS}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-xs text-white/50 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 transition-all"
@@ -186,7 +186,7 @@ export function DevHub() {
             <ExternalLink className="w-3 h-3" />
           </a>
           <span className="inline-flex items-center gap-2 text-xs text-white/50 border border-white/10 px-3 py-1.5">
-            X-Layer Testnet · chainId 1952
+            X-Layer Mainnet · chainId 196
           </span>
         </div>
       </div>
@@ -333,7 +333,7 @@ export function DevHub() {
               <code className="text-[#1de1f1] font-mono ml-1">{CONTRACT_ADDRESS}</code>
             </span>
             <span>Solidity ^0.8.24</span>
-            <span>X-Layer Testnet (chainId 1952)</span>
+            <span>X-Layer Mainnet (chainId 196)</span>
           </div>
 
           <div className="border border-white/10 overflow-hidden">
@@ -394,7 +394,7 @@ console.log("Task posted:", tx.hash);`} />
             icon: Code,
             title: { en: "Smart Contract", zh: "智能合约" },
             desc: { en: "AgentArena.sol source on OKX Explorer", zh: "OKX 浏览器上的合约源码" },
-            href: `https://www.okx.com/web3/explorer/xlayer-test/address/${CONTRACT_ADDRESS}`,
+            href: `https://www.okx.com/web3/explorer/xlayer/address/${CONTRACT_ADDRESS}`,
           },
         ].map((card, i) => {
           const Icon = card.icon;

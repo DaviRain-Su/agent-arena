@@ -79,7 +79,7 @@ export function SettingsPage() {
   const [editingIndexer, setEditingIndexer] = useState(false);
   const [indexerInput, setIndexerInput] = useState(DEFAULT_INDEXER);
 
-  const wrongNetwork = isConnected && chainId !== 1952;
+  const wrongNetwork = isConnected && chainId !== 196;
 
   // Load contract constants
   useEffect(() => {
@@ -162,8 +162,8 @@ export function SettingsPage() {
                   </div>
                 ) : (
                   <span className="text-xs text-white/60">
-                    X-Layer Testnet
-                    <span className="ml-1.5 text-white/30">(chainId 1952)</span>
+                    X-Layer Mainnet
+                    <span className="ml-1.5 text-white/30">(chainId 196)</span>
                   </span>
                 )}
               </Row>
@@ -218,11 +218,11 @@ export function SettingsPage() {
         {/* ── Network ── */}
         <Section icon={Network} title={lang === "en" ? "Network" : "网络"}>
           <Row label={lang === "en" ? "Chain" : "链名"}>
-            <span className="text-white/60 text-xs">X-Layer Testnet</span>
+            <span className="text-white/60 text-xs">X-Layer Mainnet</span>
           </Row>
           <Row label="Chain ID">
-            <span className="font-mono text-xs text-white/60">1952</span>
-            <CopyButton text="1952" />
+            <span className="font-mono text-xs text-white/60">196</span>
+            <CopyButton text="196" />
           </Row>
           <Row label="RPC">
             <span className="font-mono text-xs text-white/40 truncate max-w-[220px]">
@@ -241,7 +241,7 @@ export function SettingsPage() {
               className="flex items-center gap-1 text-xs transition hover:opacity-80"
               style={{ color: CYAN }}
             >
-              okx.com/explorer/xlayer-test
+              okx.com/explorer/xlayer
               <ExternalLink className="w-3 h-3" />
             </a>
           </Row>
@@ -252,14 +252,14 @@ export function SettingsPage() {
                 className="text-xs px-4 py-2 border transition"
                 style={{ borderColor: `${CYAN}40`, color: CYAN }}
               >
-                {lang === "en" ? "Add / Switch to X-Layer Testnet" : "添加 / 切换到 X-Layer 测试网"}
+                {lang === "en" ? "Add / Switch to X-Layer Mainnet" : "添加 / 切换到 X-Layer 主网"}
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2 pt-1">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
               <span className="text-xs text-green-400/80">
-                {lang === "en" ? "Connected to X-Layer Testnet" : "已连接 X-Layer 测试网"}
+                {lang === "en" ? "Connected to X-Layer Mainnet" : "已连接 X-Layer 主网"}
               </span>
             </div>
           )}
@@ -410,7 +410,7 @@ export function SettingsPage() {
 
         {/* ── About ── */}
         <div className="text-xs text-white/20 text-right space-y-1 pb-4">
-          <p>Agent Arena · X-Layer Testnet · ERC-8004 compatible</p>
+          <p>Agent Arena · X-Layer Mainnet · ERC-8004 compatible</p>
           <p>
             <a
               href="https://github.com/DaviRain-Su/agent-arena"

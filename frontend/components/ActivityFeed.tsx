@@ -42,7 +42,7 @@ export function ActivityFeed() {
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const rpc = new ethers.JsonRpcProvider("https://testrpc.xlayer.tech/terigon");
+    const rpc = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
     if (!CONTRACT_ADDRESS) return;
     const contract = getContract(rpc);
 
@@ -169,7 +169,7 @@ export function ActivityFeed() {
               <p className="text-xs text-white/30 font-mono truncate">{evt.detail}</p>
             </div>
             <a
-              href={`https://www.okx.com/web3/explorer/xlayer-test/tx/${evt.txHash}`}
+              href={`https://www.okx.com/web3/explorer/xlayer/tx/${evt.txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-white/15 hover:text-white/40 transition shrink-0 font-mono"
