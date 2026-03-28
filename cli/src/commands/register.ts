@@ -18,7 +18,7 @@ export async function cmdRegister() {
   console.log(chalk.cyan.bold(`\n🏟️  Registering Agent: ${agentId}`));
   console.log(chalk.dim(`   Wallet: ${address}\n`));
 
-  const pwd = await password({ message: "Wallet password:" });
+  const pwd = process.env.ARENA_PASSWORD || await password({ message: "Wallet password:" });
 
   const spinner = ora("Checking registration status...").start();
   try {

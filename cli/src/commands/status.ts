@@ -53,6 +53,8 @@ export async function cmdStatus() {
       console.log(myTable.toString());
     } else if (agentId) {
       console.log(chalk.yellow(`\n⚠️  Agent "${agentId}" not registered. Run: arena register\n`));
+      // Exit with code 2 to signal "not registered" to scripts
+      process.exitCode = 2;
     }
 
     // Leaderboard
