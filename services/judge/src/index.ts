@@ -55,7 +55,7 @@ interface Task {
 interface EvaluationResult {
   score: number;        // 0-100
   winner: string;       // agent address
-  reasonURI: string;    // IPFS CID or direct string
+  reasonURI: string;    // data URI with full report
   breakdown: {
     correctness: number;
     codeQuality: number;
@@ -125,9 +125,10 @@ class JudgeService {
     );
 
     for (const event of events) {
-      const taskId = Number(event.args?.taskId);
-      const agent = event.args?.agent;
-      const resultHash = event.args?.resultHash;
+      const evt = event as any;
+      const taskId = Number(evt.args?.taskId);
+      const agent = evt.args?.agent as string;
+      const resultHash = evt.args?.resultHash as string;
       
       // Skip already judged tasks
       if (this.judgedTasks.has(taskId)) {
@@ -161,6 +162,7 @@ class JudgeService {
         console.log(`   Score: ${evaluation.score}/100`);
         console.log(`   Breakdown:`, evaluation.breakdown);
         console.log(`   Winner: ${evaluation.winner}`);
+        console.log(`   Report: ${evaluation.reasonURI.slice(0, 80)}...`);
 
         // Submit on-chain
         const tx = await this.contract.judgeAndPay(
@@ -265,6 +267,35 @@ class JudgeService {
   }
 
   /**
+   * Generate a reasonURI that contains full evaluation details
+   * Uses base64 data URI since IPFS upload is async/complex
+   */
+  private generateReasonURI(
+    score: number, 
+    breakdown: EvaluationResult["breakdown"], 
+    method: string,
+    task: Task, 
+    submission: string
+  ): string {
+    const report = {
+      taskId: task.id,
+      taskDescription: task.description,
+      timestamp: Date.now(),
+      score,
+      breakdown,
+      submissionPreview: submission.slice(0, 500),
+      method,
+      note: "Full evaluation report - base64 encoded for transparency. Decode at base64decode.org"
+    };
+    
+    const jsonStr = JSON.stringify(report, null, 2);
+    const base64 = Buffer.from(jsonStr).toString("base64");
+    
+    // data URI format - contains full details, can be decoded by anyone
+    return `data:application/json;base64,${base64}`;
+  }
+
+  /**
    * Evaluate using test cases extracted from the task description
    * This is a placeholder - real implementation would run actual tests
    */
@@ -309,12 +340,13 @@ class JudgeService {
     if (!usesRecursion) efficiency += 5; // iterative often better than recursive
     
     const score = Math.min(100, correctness + codeQuality + efficiency);
+    const breakdown = { correctness, codeQuality, efficiency };
     
     return {
       score,
       winner: task.assignedAgent,
-      reasonURI: `eval://test-cases-${Date.now()}`,
-      breakdown: { correctness, codeQuality, efficiency }
+      reasonURI: this.generateReasonURI(score, breakdown, "test-cases", task, submission),
+      breakdown
     };
   }
 
@@ -371,7 +403,7 @@ Respond with ONLY a JSON object in this exact format:
       return {
         score,
         winner: task.assignedAgent,
-        reasonURI: `eval://claude-${Date.now()}`,
+        reasonURI: this.generateReasonURI(score, breakdown, "claude", task, submission),
         breakdown
       };
     } catch (e) {
@@ -388,22 +420,24 @@ Respond with ONLY a JSON object in this exact format:
     const hasContent = submission.length > 20;
     const looksLikeCode = /[{}();=]|function|def|class/.test(submission);
     
+    let score: number;
+    let breakdown: EvaluationResult["breakdown"];
+    
     if (!hasContent || !looksLikeCode) {
       // Submission is garbage - fail it
-      return {
-        score: 30,
-        winner: task.assignedAgent,
-        reasonURI: `eval://auto-fail-${Date.now()}`,
-        breakdown: { correctness: 10, codeQuality: 10, efficiency: 10 }
-      };
+      score = 30;
+      breakdown = { correctness: 10, codeQuality: 10, efficiency: 10 };
+    } else {
+      // Pass with minimum viable score
+      score = 75;
+      breakdown = { correctness: 30, codeQuality: 25, efficiency: 20 };
     }
     
-    // Pass with minimum viable score
     return {
-      score: 75,
+      score,
       winner: task.assignedAgent,
-      reasonURI: `eval://auto-pass-${Date.now()}`,
-      breakdown: { correctness: 30, codeQuality: 25, efficiency: 20 }
+      reasonURI: this.generateReasonURI(score, breakdown, "automatic", task, submission),
+      breakdown
     };
   }
 }
