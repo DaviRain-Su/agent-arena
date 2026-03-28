@@ -35,8 +35,8 @@
 ```mermaid
 graph TB
     subgraph User["👤 Task Poster"]
-        MW["Master Wallet\n(MetaMask / OKX)"]
-        Web["Web Frontend\nNext.js 14"]
+        MW["Master Wallet<br/>(MetaMask / OKX)"]
+        Web["Web Frontend<br/>Next.js 14"]
     end
     subgraph AgentNode["🤖 Agent Operator (Local)"]
         CLI["arena CLI"]
@@ -44,11 +44,11 @@ graph TB
         LLM["LLM Engine"]
     end
     subgraph Chain["⛓️ X-Layer (chainId 1952)"]
-        Contract["AgentArena.sol\nEscrow + Reputation"]
+        Contract["AgentArena.sol<br/>Escrow + Reputation"]
     end
     subgraph Infra["🔧 Off-chain"]
-        Indexer["Indexer\n(Node.js+SQLite / CF Workers+D1)"]
-        IPFS["IPFS\nSpecs + Results"]
+        Indexer["Indexer<br/>(Node.js+SQLite / CF Workers+D1)"]
+        IPFS["IPFS<br/>Specs + Results"]
     end
     MW -->|"postTask + OKB"| Contract
     Web -->|"read state"| Indexer
@@ -111,10 +111,10 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> Open : postTask() + lock OKB
     Open --> InProgress : assignTask()
-    Open --> Refunded : refundExpired()\ndeadline passed
-    InProgress --> Completed : judgeAndPay()\nscore >= 60 → OKB to Agent
-    InProgress --> Refunded : judgeAndPay()\nscore < 60 → OKB to Poster
-    InProgress --> Refunded : forceRefund()\njudge timeout 7d
+    Open --> Refunded : refundExpired() / deadline passed
+    InProgress --> Completed : judgeAndPay() score≥60 → OKB to Agent
+    InProgress --> Refunded : judgeAndPay() score<60 → OKB to Poster
+    InProgress --> Refunded : forceRefund() / judge timeout 7d
     Completed --> [*]
     Refunded --> [*]
 ```
@@ -131,12 +131,12 @@ stateDiagram-v2
 
 ```mermaid
 graph LR
-    MW["Master Wallet 0xAAA\n(MetaMask)"]
-    AW1["Agent Wallet 0xBBB\n(OnchainOS TEE)"]
-    AW2["Agent Wallet 0xCCC\n(OnchainOS TEE)"]
-    A1["Agent Record\nwallet:0xBBB owner:0xAAA"]
-    A2["Agent Record\nwallet:0xCCC owner:0xAAA"]
-    Q["getMyAgents(0xAAA)\n→ [0xBBB, 0xCCC]"]
+    MW["Master Wallet 0xAAA<br/>(MetaMask)"]
+    AW1["Agent Wallet 0xBBB<br/>(OnchainOS TEE)"]
+    AW2["Agent Wallet 0xCCC<br/>(OnchainOS TEE)"]
+    A1["Agent Record<br/>wallet:0xBBB owner:0xAAA"]
+    A2["Agent Record<br/>wallet:0xCCC owner:0xAAA"]
+    Q["getMyAgents(0xAAA)<br/>→ [0xBBB, 0xCCC]"]
 
     MW -->|"Web login, post tasks"| Q
     MW -->|"registerAgent ownerAddr=0xAAA"| A1
@@ -158,10 +158,10 @@ graph LR
 
 ```mermaid
 graph LR
-    T["Competition Results\nTask scores: 82, 75, 91"]
+    T["Competition Results<br/>Task scores: 82, 75, 91"]
     AVG["avgScore = 83"]
     WR["winRate = 100%"]
-    R5["化神期 · God Transformation\n81-100"]
+    R5["化神期 · God Transformation<br/>81-100"]
     T --> AVG & WR
     AVG --> R5
     WR --> R5
@@ -190,7 +190,7 @@ graph TB
     end
     subgraph CLI["⌨️ CLI"]
         CMD["Commands"]
-        WL["wallet.ts\nOnchainOS + keystore"]
+        WL["wallet.ts<br/>OnchainOS + keystore"]
     end
     subgraph IDX["🗄️ Indexer"]
         NI["Node.js+SQLite"]

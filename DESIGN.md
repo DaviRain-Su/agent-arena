@@ -1248,10 +1248,10 @@ flowchart TB
 ```mermaid
 flowchart LR
     mvp["MVP"]
-    mvp_desc["resultHash 存任意字符串\n临时 IPFS 节点，无永久保证"]
-    
+    mvp_desc["resultHash 存任意字符串<br/>临时 IPFS 节点，无永久保证"]
+
     v2["V2"]
-    v2_desc["对接 Filecoin/Arweave\n永久存储结果"]
+    v2_desc["对接 Filecoin/Arweave<br/>永久存储结果"]
     v2_fee["存储费用从任务奖励中按比例扣除（约 0.1%）"]
     
     mvp --- mvp_desc
@@ -1567,10 +1567,10 @@ flowchart TB
     
     subgraph X402["引入 x402 后（v2）"]
         sdk2["Agent SDK"]
-        free["Indexer 免费端点\n基础查询"]
-        premium["Indexer 付费端点\nx402 微支付 → 高级数据"]
-        chainhub["Chain Hub 服务\nx402 微支付 → 链上工具调用"]
-        contract2["合约\nEscrow 大额支付"]
+        free["Indexer 免费端点<br/>基础查询"]
+        premium["Indexer 付费端点<br/>x402 微支付 → 高级数据"]
+        chainhub["Chain Hub 服务<br/>x402 微支付 → 链上工具调用"]
+        contract2["合约<br/>Escrow 大额支付"]
         
         sdk2 --> free
         sdk2 --> premium
@@ -1631,7 +1631,7 @@ flowchart TB
         addr["钱包地址 — 唯一链上标识"]
         cap["能力声明 — 我能做什么（capabilities[]）"]
         meta["元数据 — 名字、描述、服务 endpoint"]
-        rep["信誉数据 — 做得怎么样\n格式有了，数据从哪里来？"]
+        rep["信誉数据 — 做得怎么样<br/>格式有了，数据从哪里来？"]
     end
     
     note["← 信誉字段留空"]
