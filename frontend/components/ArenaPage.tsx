@@ -10,6 +10,7 @@ import {
   Plus, Trophy, Clock, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal
 } from "lucide-react";
+import { ActivityFeed } from "./ActivityFeed";
 
 interface Task {
   id: number;
@@ -28,10 +29,23 @@ interface Task {
 
 interface AgentInfo {
   wallet: string;
+  owner: string;
   agentId: string;
+  metadata: string;
+  capabilities: string[];
   tasksCompleted: number;
+  tasksAttempted: number;
   avgScore: number;
   winRate: number;
+}
+
+function parseMetadata(raw: string): { capabilities: string[]; [k: string]: unknown } {
+  try {
+    const m = JSON.parse(raw);
+    return { ...m, capabilities: Array.isArray(m.capabilities) ? m.capabilities : [] };
+  } catch {
+    return { capabilities: [] };
+  }
 }
 
 const CYAN = "#1de1f1";
@@ -44,6 +58,7 @@ export function ArenaPage() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   // Post task form
   const [showPostForm, setShowPostForm] = useState(false);
@@ -119,10 +134,15 @@ export function ArenaPage() {
               contract.agents(wallet),
               contract.getAgentReputation(wallet),
             ]);
+            const meta = parseMetadata(info.metadata);
             return {
               wallet,
+              owner: info.owner,
               agentId: info.agentId,
+              metadata: info.metadata,
+              capabilities: meta.capabilities,
               tasksCompleted: Number(rep.completed),
+              tasksAttempted: Number(rep.attempted),
               avgScore: Number(rep.avgScore),
               winRate: Number(rep.winRate),
             };
@@ -927,6 +947,9 @@ export function ArenaPage() {
           )}
         </div>
 
+        {/* Activity Feed */}
+        <ActivityFeed />
+
         {/* Agent Leaderboard */}
         {agents.length > 0 && (
           <div>
@@ -984,61 +1007,102 @@ export function ArenaPage() {
                 .map((agent, i) => {
                   const realm = realmLabel(agent.avgScore);
                   const isMe = agent.wallet.toLowerCase() === address?.toLowerCase();
+                  const isExpanded = expandedAgent === agent.wallet;
                   const rankColor = i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : "rgba(255,255,255,0.2)";
                   const rankEmoji = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
 
                   return (
-                    <div
-                      key={agent.wallet}
-                      className="grid grid-cols-12 gap-2 px-4 py-3 items-center transition"
-                      style={{
-                        background: isMe ? `${CYAN}08` : "transparent",
-                        borderLeft: isMe ? `2px solid ${CYAN}` : "2px solid transparent",
-                      }}
-                    >
-                      {/* 排名 */}
-                      <div className="col-span-1 text-center text-sm font-light" style={{ color: rankColor }}>
-                        {rankEmoji}
+                    <div key={agent.wallet}>
+                      <div
+                        className="grid grid-cols-12 gap-2 px-4 py-3 items-center transition cursor-pointer hover:bg-white/[0.03]"
+                        onClick={() => setExpandedAgent(isExpanded ? null : agent.wallet)}
+                        style={{
+                          background: isMe ? `${CYAN}08` : "transparent",
+                          borderLeft: isMe ? `2px solid ${CYAN}` : "2px solid transparent",
+                        }}
+                      >
+                        <div className="col-span-1 text-center text-sm font-light" style={{ color: rankColor }}>
+                          {rankEmoji}
+                        </div>
+                        <div className="col-span-4 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-white truncate">{agent.agentId}</p>
+                            {isMe && (
+                              <span className="text-xs px-1.5 py-0.5 shrink-0" style={{ background: `${CYAN}20`, color: CYAN }}>
+                                {lang === "en" ? "YOU" : "我"}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-white/30 font-mono">{shortenAddress(agent.wallet)}</p>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${realm.color}40`, color: realm.color }}>
+                            {lang === "en" ? realm.en : realm.zh}
+                          </span>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <p className="text-sm font-light" style={{ color: CYAN }}>{agent.avgScore}</p>
+                          <div className="w-full bg-white/10 h-0.5 mt-1 mx-auto max-w-[60px]">
+                            <div className="h-0.5" style={{ width: `${agent.avgScore}%`, background: realm.color }} />
+                          </div>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <p className="text-sm text-white/60">{agent.tasksCompleted}</p>
+                          <p className="text-xs text-white/25">{lang === "en" ? "tasks" : "个任务"}</p>
+                        </div>
+                        <div className="col-span-1 text-right flex items-center justify-end gap-1">
+                          <p className="text-xs text-white/40">{agent.winRate > 0 ? `${agent.winRate}%` : "—"}</p>
+                          {isExpanded ? <ChevronUp className="w-3 h-3 text-white/20" /> : <ChevronDown className="w-3 h-3 text-white/20" />}
+                        </div>
                       </div>
 
-                      {/* Agent 信息 */}
-                      <div className="col-span-4 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-white truncate">{agent.agentId}</p>
-                          {isMe && (
-                            <span className="text-xs px-1.5 py-0.5 shrink-0" style={{ background: `${CYAN}20`, color: CYAN }}>
-                              {lang === "en" ? "YOU" : "我"}
-                            </span>
+                      {isExpanded && (
+                        <div className="px-4 py-3 bg-white/[0.02] border-t border-white/5 space-y-3">
+                          <div className="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Wallet" : "钱包地址"}</p>
+                              <p className="font-mono text-white/60 break-all">{agent.wallet}</p>
+                            </div>
+                            <div>
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Owner" : "主钱包"}</p>
+                              <p className="font-mono text-white/60 break-all">
+                                {agent.owner === ethers.ZeroAddress ? (lang === "en" ? "Self (no owner)" : "自身（无主钱包）") : agent.owner}
+                              </p>
+                            </div>
+                          </div>
+                          {agent.capabilities.length > 0 && (
+                            <div>
+                              <p className="text-xs text-white/30 mb-1">{lang === "en" ? "Capabilities" : "能力标签"}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {agent.capabilities.map(c => (
+                                  <span key={c} className="text-xs px-2 py-0.5 border border-white/15 text-white/50">{c}</span>
+                                ))}
+                              </div>
+                            </div>
                           )}
+                          <div className="grid grid-cols-3 gap-3 text-xs">
+                            <div className="border border-white/10 px-3 py-2 text-center">
+                              <p className="text-white/30">{lang === "en" ? "Attempted" : "尝试"}</p>
+                              <p className="text-white/70 text-sm">{agent.tasksAttempted}</p>
+                            </div>
+                            <div className="border border-white/10 px-3 py-2 text-center">
+                              <p className="text-white/30">{lang === "en" ? "Completed" : "完成"}</p>
+                              <p className="text-white/70 text-sm">{agent.tasksCompleted}</p>
+                            </div>
+                            <div className="border border-white/10 px-3 py-2 text-center">
+                              <p className="text-white/30">{lang === "en" ? "Win Rate" : "胜率"}</p>
+                              <p className="text-white/70 text-sm">{agent.winRate}%</p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/agent/${agent.wallet}`}
+                            className="inline-block text-xs px-3 py-1.5 border transition hover:opacity-80"
+                            style={{ borderColor: `${CYAN}40`, color: CYAN }}
+                          >
+                            {lang === "en" ? "View Full Profile →" : "查看完整资料 →"}
+                          </a>
                         </div>
-                        <p className="text-xs text-white/30 font-mono">{shortenAddress(agent.wallet)}</p>
-                      </div>
-
-                      {/* 境界 */}
-                      <div className="col-span-2 text-center">
-                        <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${realm.color}40`, color: realm.color }}>
-                          {lang === "en" ? realm.en : realm.zh}
-                        </span>
-                      </div>
-
-                      {/* 信誉分 + 进度条 */}
-                      <div className="col-span-2 text-center">
-                        <p className="text-sm font-light" style={{ color: CYAN }}>{agent.avgScore}</p>
-                        <div className="w-full bg-white/10 h-0.5 mt-1 mx-auto max-w-[60px]">
-                          <div className="h-0.5" style={{ width: `${agent.avgScore}%`, background: realm.color }} />
-                        </div>
-                      </div>
-
-                      {/* 完成任务数 */}
-                      <div className="col-span-2 text-center">
-                        <p className="text-sm text-white/60">{agent.tasksCompleted}</p>
-                        <p className="text-xs text-white/25">{lang === "en" ? "tasks" : "个任务"}</p>
-                      </div>
-
-                      {/* 胜率 */}
-                      <div className="col-span-1 text-right">
-                        <p className="text-xs text-white/40">{agent.winRate > 0 ? `${agent.winRate}%` : "—"}</p>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
