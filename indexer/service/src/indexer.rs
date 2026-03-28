@@ -6,6 +6,7 @@ use ethers::{
     providers::{Http, Provider},
     types::{Address, Filter, U64},
 };
+use sqlx::Executor;
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
 use tracing::{debug, info, warn};
@@ -86,9 +87,9 @@ impl ChainIndexer {
         let events = vec![
             ("TaskPosted", "0xcdf01a7fce2cec80e8e617626f3f34f334ed96168dfcbebc5b9fd0a64170337e"),
             ("TaskApplied", "0x7f4b15de145103c2f48b4429df1c147497eb30d764058cdbdd0e7b7ad82d8fac"),
-            ("TaskAssigned", "0x..."),
-            ("ResultSubmitted", "0x..."),
-            ("TaskCompleted", "0x..."),
+            ("TaskAssigned", "0xfdbec991c520c476b24bb9ee9123ea146594b230b424c8140b23c33ac5906242"),
+            ("ResultSubmitted", "0xc06b551d984e333ac851ab20b1454a08d92740468f52ff54c0cd5270817f20a9"),
+            ("TaskCompleted", "0x6f86192dffec1db9a9661011e799dea69af8d97961785f45d421ac62a59e606d"),
             ("AgentRegistered", "0xda816ca2fc37b9eecec62ae8263008ec6be1afb38dc28bc9c7c51d7e348da9c2"),
         ];
 
@@ -147,31 +148,83 @@ impl ChainIndexer {
         Ok(())
     }
 
-    async fn process_task_assigned(&self, _log: &ethers::types::Log) -> Result<()> {
-        // TODO: Update task status and assigned_agent
+    async fn process_task_assigned(&self, log: &ethers::types::Log) -> Result<()> {
+        let task_id = U256::from(log.topics[1].as_bytes()).as_u64() as i64;
+        let agent = format!("0x{}", hex::encode(&log.topics[2].as_bytes()[12..]));
+
+        // Update task status by re-fetching from chain via upsert
+        // For MVP: directly update the relevant fields in DB
+        sqlx::query(
+            "UPDATE tasks SET status = 'in_progress', assigned_agent = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .bind(&agent)
+        .bind(task_id)
+        .execute(&*self.db.pool_ref())
+        .await?;
+
+        info!("TaskAssigned: #{} → {}", task_id, agent);
         Ok(())
     }
 
-    async fn process_result_submitted(&self, _log: &ethers::types::Log) -> Result<()> {
-        // TODO: Update task result_hash
+    async fn process_result_submitted(&self, log: &ethers::types::Log) -> Result<()> {
+        let task_id = U256::from(log.topics[1].as_bytes()).as_u64() as i64;
+        let agent = format!("0x{}", hex::encode(&log.topics[2].as_bytes()[12..]));
+
+        // Decode resultHash from ABI-encoded data (dynamic string)
+        let result_hash = Self::decode_abi_string(&log.data.0).unwrap_or_default();
+
+        sqlx::query(
+            "UPDATE tasks SET result_hash = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .bind(&result_hash)
+        .bind(task_id)
+        .execute(&*self.db.pool_ref())
+        .await?;
+
+        info!("ResultSubmitted: #{} by {} hash={}", task_id, agent, &result_hash[..result_hash.len().min(40)]);
         Ok(())
     }
 
-    async fn process_task_completed(&self, _log: &ethers::types::Log) -> Result<()> {
-        // TODO: Update task status, score, winner
+    async fn process_task_completed(&self, log: &ethers::types::Log) -> Result<()> {
+        let task_id = U256::from(log.topics[1].as_bytes()).as_u64() as i64;
+        let winner = format!("0x{}", hex::encode(&log.topics[2].as_bytes()[12..]));
+
+        // data layout: reward (uint256, 32 bytes) + score (uint8, padded to 32 bytes)
+        let data = &log.data.0;
+        let score = if data.len() >= 64 { data[63] as i64 } else { 0 };
+
+        sqlx::query(
+            "UPDATE tasks SET status = 'completed', winner = ?, score = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .bind(&winner)
+        .bind(score)
+        .bind(task_id)
+        .execute(&*self.db.pool_ref())
+        .await?;
+
+        // Update agent stats
+        sqlx::query(
+            "UPDATE agents SET tasks_completed = tasks_completed + 1, total_score = total_score + ?, updated_at = datetime('now') WHERE wallet = ?"
+        )
+        .bind(score)
+        .bind(&winner)
+        .execute(&*self.db.pool_ref())
+        .await?;
+
+        info!("TaskCompleted: #{} winner={} score={}", task_id, winner, score);
         Ok(())
     }
 
     async fn process_agent_registered(&self, log: &ethers::types::Log) -> Result<()> {
         let wallet = format!("0x{}", hex::encode(&log.topics[1].as_bytes()[12..]));
-        
-        // Decode agentId from data
-        let agent_id = String::from_utf8_lossy(&log.data.0).to_string();
-        
+
+        // Decode agentId from ABI-encoded data (dynamic string)
+        let agent_id = Self::decode_abi_string(&log.data.0).unwrap_or_default();
+
         let agent = Agent {
             wallet: wallet.clone(),
-            owner: wallet.clone(), // Will be updated from contract call
-            agent_id: agent_id.trim_end_matches('\u{0}').to_string(),
+            owner: wallet.clone(),
+            agent_id,
             metadata: "{}".to_string(),
             tasks_completed: 0,
             tasks_attempted: 0,
@@ -183,7 +236,18 @@ impl ChainIndexer {
 
         self.db.upsert_agent(&agent).await?;
         info!("AgentRegistered: {} ({})", wallet, agent.agent_id);
-        
+
         Ok(())
+    }
+
+    /// Decode an ABI-encoded dynamic string from event data.
+    /// Layout: offset (32 bytes) + length (32 bytes) + data (padded to 32 bytes)
+    fn decode_abi_string(data: &[u8]) -> Option<String> {
+        if data.len() < 64 { return None; }
+        let offset = U256::from_big_endian(&data[0..32]).as_usize();
+        if offset + 32 > data.len() { return None; }
+        let len = U256::from_big_endian(&data[offset..offset+32]).as_usize();
+        if offset + 32 + len > data.len() { return None; }
+        String::from_utf8(data[offset+32..offset+32+len].to_vec()).ok()
     }
 }

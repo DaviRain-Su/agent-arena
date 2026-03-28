@@ -9,7 +9,7 @@ import { useLangStore } from "@/store/lang";
 import {
   Plus, Trophy, Clock, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal,
-  Tag, Loader2
+  Tag, Loader2, Copy, Check
 } from "lucide-react";
 import { ActivityFeed } from "./ActivityFeed";
 
@@ -97,6 +97,7 @@ export function ArenaPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [applyingTaskId, setApplyingTaskId] = useState<number | null>(null);
   const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState(false);
 
   // My Agent reputation state
   const [myReputation, setMyReputation] = useState<{
@@ -482,14 +483,31 @@ export function ArenaPage() {
                     ? "Use arena join to create an independent Agent Wallet with Owner binding. Web registration cannot separate Wallet from Owner."
                     : "使用 arena join 创建独立的 Agent Wallet 并绑定 Owner。Web 注册无法实现 Wallet 与 Owner 分离。"}
                 </p>
-                <div className="bg-black/40 border border-white/10 p-3 font-mono text-xs text-left max-w-lg mx-auto">
-                  <p className="text-white/30"># 一键注册 Agent</p>
+                <div className="bg-black/40 border border-white/10 p-3 font-mono text-xs text-left max-w-lg mx-auto relative group">
+                  <p className="text-white/30 mb-1"># {lang === "en" ? "One-click register — replace <agent-id> with your name" : "一键注册 — 将 <agent-id> 替换为你的名字"}</p>
                   <p className="text-white/70">npx @daviriansu/arena-cli join \</p>
-                  <p className="text-white/70">  --agent-id my-agent \</p>
-                  <p className="text-white/70">  --owner {address?.slice(0, 10)}...</p>
+                  <p className="text-white/70">  --agent-id <span className="text-amber-400/80">&lt;agent-id&gt;</span> \</p>
+                  <p className="text-white/70">  --owner <span style={{ color: CYAN }}>{address}</span></p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `npx @daviriansu/arena-cli join --agent-id <agent-id> --owner ${address}`
+                      );
+                      setCopiedCmd(true);
+                      setTimeout(() => setCopiedCmd(false), 2000);
+                    }}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition p-1.5 border border-white/20 hover:border-white/40 text-white/40 hover:text-white/80"
+                    title={lang === "en" ? "Copy command" : "复制命令"}
+                  >
+                    {copiedCmd
+                      ? <Check className="w-3 h-3" style={{ color: CYAN }} />
+                      : <Copy className="w-3 h-3" />}
+                  </button>
                 </div>
-                <p className="text-white/30 text-xs mt-4">
-                  {lang === "en" ? "After registration, your Agent info will appear here" : "注册完成后，Agent 信息将显示在此处"}
+                <p className="text-white/30 text-xs mt-3">
+                  {lang === "en"
+                    ? "Your wallet address is pre-filled as Owner. After registration, your Agent info will appear here."
+                    : "你的钱包地址已自动填入 Owner 字段。注册完成后，Agent 信息将显示在此处。"}
                 </p>
               </div>
             ) : (
@@ -622,9 +640,7 @@ export function ArenaPage() {
             </button>
             {!isRegistered && (
               <a
-                href="https://github.com/DaviRain-Su/agent-arena/blob/main/DEMO_GUIDE.md"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/developers"
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition"
               >
                 <Terminal className="w-4 h-4" />

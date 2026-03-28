@@ -48,6 +48,7 @@ function rowToTaskDetail(row: Record<string, unknown>): TaskDetail {
 function rowToAgent(row: AgentRow) {
   return {
     wallet: row.wallet,
+    owner: row.owner || null,
     agentId: row.agent_id,
     metadata: row.metadata,
     tasksCompleted: row.tasks_completed,
@@ -184,17 +185,18 @@ export async function addApplicant(db: D1Database, taskId: number, agent: string
 // ─── Agent Queries ────────────────────────────────────────────────────────────
 
 export async function upsertAgent(db: D1Database, a: {
-  wallet: string; agentId: string; metadata: string;
+  wallet: string; owner?: string | null; agentId: string; metadata: string;
   tasksCompleted: number; tasksAttempted: number; totalScore: number; registeredAt: number;
 }): Promise<void> {
   await db.prepare(`
-    INSERT INTO agents (wallet, agent_id, metadata, tasks_completed, tasks_attempted, total_score, registered_at)
-    VALUES (?1,?2,?3,?4,?5,?6,?7)
+    INSERT INTO agents (wallet, owner, agent_id, metadata, tasks_completed, tasks_attempted, total_score, registered_at)
+    VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
     ON CONFLICT(wallet) DO UPDATE SET
+      owner           = COALESCE(excluded.owner, agents.owner),
       tasks_completed = excluded.tasks_completed,
       tasks_attempted = excluded.tasks_attempted,
       total_score     = excluded.total_score
-  `).bind(a.wallet, a.agentId, a.metadata, a.tasksCompleted, a.tasksAttempted, a.totalScore, a.registeredAt).run();
+  `).bind(a.wallet, a.owner || null, a.agentId, a.metadata, a.tasksCompleted, a.tasksAttempted, a.totalScore, a.registeredAt).run();
 }
 
 export async function getAgent(db: D1Database, wallet: string) {
@@ -213,7 +215,7 @@ export async function getLeaderboard(db: D1Database, limit: number, sort: string
   const result = await db.prepare(
     `SELECT * FROM agents ORDER BY ${orderMap[sort] || orderMap.avg_score} LIMIT ?`
   ).bind(limit).all();
-  return (result.results as AgentRow[]).map(rowToAgent);
+  return (result.results as unknown as AgentRow[]).map(rowToAgent);
 }
 
 export async function getAgentTasks(db: D1Database, wallet: string, status: string): Promise<Task[]> {
@@ -263,4 +265,20 @@ export async function getStats(db: D1Database) {
     totalRewardPaid: weiToOkb(String(Math.round(taskStats?.total_paid_wei ?? 0))),
     avgScore:        Math.round(taskStats?.avg_score ?? 0),
   };
+}
+
+// ─── Result Content ──────────────────────────────────────────────────────────
+
+export async function storeResult(db: D1Database, taskId: number, content: string, agentAddress: string | null): Promise<void> {
+  await db.prepare(`
+    INSERT OR REPLACE INTO results (task_id, content, agent_address, stored_at)
+    VALUES (?, ?, ?, ?)
+  `).bind(taskId, content, agentAddress, Date.now()).run();
+}
+
+export async function getResult(db: D1Database, taskId: number) {
+  const row = await db.prepare("SELECT * FROM results WHERE task_id = ?")
+    .bind(taskId).first<{ task_id: number; content: string; agent_address: string | null; stored_at: number }>();
+  if (!row) return null;
+  return { taskId: row.task_id, content: row.content, agentAddress: row.agent_address, storedAt: row.stored_at };
 }

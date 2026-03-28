@@ -154,7 +154,11 @@ async function getAgentFromChain(rpcUrl: string, contractAddr: string, wallet: s
     const tasksAttempted = Number(decodeUint256(repResult, 2));
     const totalScore = Number(decodeUint256(result, 5));
 
-    return { wallet, agentId, metadata, tasksCompleted, tasksAttempted, totalScore };
+    const owner = decodeAddress(result, 1);
+    return {
+      wallet, owner: owner !== ZERO_ADDR ? owner : null,
+      agentId, metadata, tasksCompleted, tasksAttempted, totalScore,
+    };
   } catch (e) {
     console.error(`getAgentFromChain ${wallet} failed:`, e);
     return null;
@@ -175,9 +179,11 @@ const TOPICS: Record<string, string> = {
   ForceRefunded:   "0xa80d00e5ef4409f5bccace50fa19f6ae8a403470d95d8888605016b72021abda",
 };
 
-// NOTE: Real topic0 values must be computed from actual keccak256 of event signatures.
-// In production, either: (1) hardcode correct values, or (2) use the ethers Interface.
-// For the Cron sync, we use eth_getLogs with the contract address and process all logs.
+// Reverse lookup: topic0 → event name
+const TOPIC_TO_EVENT: Record<string, string> = {};
+for (const [name, topic] of Object.entries(TOPICS)) {
+  TOPIC_TO_EVENT[topic] = name;
+}
 
 async function getLogs(rpcUrl: string, contractAddr: string, fromBlock: number, toBlock: number) {
   return await rpcCall(rpcUrl, "eth_getLogs", [{
@@ -218,10 +224,6 @@ export async function syncEvents(env: Env): Promise<{ synced: number; newBlock: 
     const logs = await getLogs(rpcUrl, contract, fromBlock, toBlock);
     console.log(`[sync] Got ${logs.length} logs`);
 
-    // We process logs and identify event type by topics[0]
-    // Instead of computing keccak256, we use a different approach:
-    // Fetch all tasks/agents that appear in logs and sync their full state
-
     const taskIds   = new Set<number>();
     const agentAddrs = new Set<string>();
     const applicants: Array<{ taskId: number; agent: string; blockHex: string }> = [];
@@ -230,30 +232,48 @@ export async function syncEvents(env: Env): Promise<{ synced: number; newBlock: 
       const t = log.topics;
       if (!t || t.length === 0) continue;
 
-      // TaskPosted: topics[1] = taskId (indexed), topics[2] = poster (indexed)
-      // TaskApplied: topics[1] = taskId, topics[2] = agent
-      // TaskAssigned: topics[1] = taskId, topics[2] = agent
-      // TaskCompleted: topics[1] = taskId, topics[2] = winner
-      // AgentRegistered: topics[1] = wallet
+      const eventName = TOPIC_TO_EVENT[t[0]];
+      if (!eventName) continue; // unknown event, skip
 
-      if (t.length >= 2) {
-        // Try to interpret topics[1] as taskId (for task events) or address (for agent events)
-        const topic1AsNum = parseInt(t[1], 16);
-        const topic1AsAddr = "0x" + t[1].slice(26); // last 20 bytes
-
-        // Heuristic: if topics[1] value is small (< 1M), it's a taskId
-        if (topic1AsNum < 1_000_000) {
-          taskIds.add(topic1AsNum);
-        } else {
-          // It's an address
-          agentAddrs.add(topic1AsAddr);
-        }
-
-        // topics[2] often has agent address
-        if (t.length >= 3) {
-          const topic2AsAddr = "0x" + t[2].slice(26);
-          if (topic2AsAddr !== ZERO_ADDR) agentAddrs.add(topic2AsAddr);
-        }
+      switch (eventName) {
+        case "AgentRegistered":
+          // topics[1] = wallet (indexed)
+          if (t.length >= 2) agentAddrs.add("0x" + t[1].slice(26));
+          break;
+        case "TaskPosted":
+          // topics[1] = taskId (indexed), topics[2] = poster (indexed)
+          if (t.length >= 2) taskIds.add(parseInt(t[1], 16));
+          break;
+        case "TaskApplied":
+          // topics[1] = taskId (indexed), topics[2] = agent (indexed)
+          if (t.length >= 3) {
+            const taskId = parseInt(t[1], 16);
+            const agent = "0x" + t[2].slice(26);
+            taskIds.add(taskId);
+            agentAddrs.add(agent);
+            applicants.push({ taskId, agent, blockHex: log.blockNumber });
+          }
+          break;
+        case "TaskAssigned":
+          // topics[1] = taskId (indexed), topics[2] = agent (indexed)
+          if (t.length >= 2) taskIds.add(parseInt(t[1], 16));
+          if (t.length >= 3) agentAddrs.add("0x" + t[2].slice(26));
+          break;
+        case "ResultSubmitted":
+          // topics[1] = taskId (indexed), topics[2] = agent (indexed)
+          if (t.length >= 2) taskIds.add(parseInt(t[1], 16));
+          if (t.length >= 3) agentAddrs.add("0x" + t[2].slice(26));
+          break;
+        case "TaskCompleted":
+          // topics[1] = taskId (indexed), topics[2] = winner (indexed)
+          if (t.length >= 2) taskIds.add(parseInt(t[1], 16));
+          if (t.length >= 3) agentAddrs.add("0x" + t[2].slice(26));
+          break;
+        case "TaskRefunded":
+        case "ForceRefunded":
+          // topics[1] = taskId (indexed), topics[2] = poster (indexed)
+          if (t.length >= 2) taskIds.add(parseInt(t[1], 16));
+          break;
       }
 
       synced++;
@@ -268,6 +288,12 @@ export async function syncEvents(env: Env): Promise<{ synced: number; newBlock: 
         if (task.assignedAgent) agentAddrs.add(task.assignedAgent);
         if (task.winner) agentAddrs.add(task.winner);
       }
+    }
+
+    // Add applicants
+    for (const a of applicants) {
+      const ts = await getBlockTimestamp(rpcUrl, a.blockHex);
+      await addApplicant(env.DB, a.taskId, a.agent, ts);
     }
 
     // Sync all referenced agents

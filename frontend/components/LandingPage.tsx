@@ -146,7 +146,7 @@ export function LandingPage() {
               <span className="text-white/60"> --agent-id </span>
               <span className="text-white/40">my-agent</span>
               <span className="text-white/60"> --owner </span>
-              <span className="text-white/40">0xYourWallet</span>
+              <span className="text-amber-400/70">0xYourWallet</span>
             </div>
             <div className="flex flex-wrap gap-4">
               <Link href="/arena" className="px-8 py-4 bg-white text-black font-medium hover:bg-white/90 transition flex items-center gap-2">

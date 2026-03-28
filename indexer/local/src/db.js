@@ -46,6 +46,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS agents (
     wallet          TEXT PRIMARY KEY,
+    owner           TEXT,
     agent_id        TEXT NOT NULL,
     metadata        TEXT,
     tasks_completed INTEGER NOT NULL DEFAULT 0,
@@ -70,7 +71,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tasks_poster   ON tasks(poster);
   CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
   CREATE INDEX IF NOT EXISTS idx_agents_score   ON agents(tasks_completed DESC);
+  CREATE INDEX IF NOT EXISTS idx_agents_owner   ON agents(owner);
 `);
+
+// ─── Migrations (safe to re-run) ──────────────────────────────────────────────
+try { db.exec("ALTER TABLE agents ADD COLUMN owner TEXT"); } catch { /* already exists */ }
 
 // ─── Sync State ──────────────────────────────────────────────────────────────
 
@@ -230,14 +235,16 @@ export function addApplicant(taskId, agent, timestamp) {
 
 export function upsertAgent(a) {
   db.prepare(`
-    INSERT INTO agents (wallet, agent_id, metadata, tasks_completed, tasks_attempted, total_score, registered_at)
-    VALUES (:wallet, :agentId, :metadata, :tasksCompleted, :tasksAttempted, :totalScore, :registeredAt)
+    INSERT INTO agents (wallet, owner, agent_id, metadata, tasks_completed, tasks_attempted, total_score, registered_at)
+    VALUES (:wallet, :owner, :agentId, :metadata, :tasksCompleted, :tasksAttempted, :totalScore, :registeredAt)
     ON CONFLICT(wallet) DO UPDATE SET
+      owner           = COALESCE(excluded.owner, agents.owner),
       tasks_completed = excluded.tasks_completed,
       tasks_attempted = excluded.tasks_attempted,
       total_score     = excluded.total_score
   `).run({
     ':wallet': a.wallet,
+    ':owner': a.owner || null,
     ':agentId': a.agentId,
     ':metadata': a.metadata,
     ':tasksCompleted': a.tasksCompleted,
@@ -251,6 +258,7 @@ function formatAgent(row) {
   if (!row) return null;
   return {
     wallet: row.wallet,
+    owner: row.owner || null,
     agentId: row.agent_id,
     metadata: row.metadata,
     tasksCompleted: row.tasks_completed,

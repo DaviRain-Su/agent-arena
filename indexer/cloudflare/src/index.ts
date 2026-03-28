@@ -8,6 +8,7 @@ import { syncEvents } from "./sync.js";
 import {
   getTasks, getTaskById, getApplicants, setResultPreview,
   getAgent, getAgentTasks, getLeaderboard, getStats,
+  storeResult, getResult,
 } from "./db.js";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -127,6 +128,35 @@ app.get("/leaderboard", async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") || "10"), 50);
   const sort  = c.req.query("sort") || "avg_score";
   return c.json({ agents: await getLeaderboard(c.env.DB, limit, sort) });
+});
+
+// ─── Results (content storage for judge service) ──────────────────────────────
+
+app.post("/results/:taskId", async (c) => {
+  const taskId = parseInt(c.req.param("taskId"));
+  const { content, agentAddress } = await c.req.json<{ content: string; agentAddress?: string }>();
+  if (!content || typeof content !== "string") {
+    return c.json({ error: "content (string) required" }, 400);
+  }
+  if (!agentAddress || typeof agentAddress !== "string") {
+    return c.json({ error: "agentAddress (string) required" }, 400);
+  }
+  // Verify caller is assigned agent (fetch task from chain)
+  try {
+    const task = await getTaskById(c.env.DB, taskId);
+    if (task && task.assignedAgent && task.assignedAgent.toLowerCase() !== agentAddress.toLowerCase()) {
+      return c.json({ error: "Not the assigned agent for this task" }, 403);
+    }
+  } catch { /* allow on verify failure for MVP */ }
+  await storeResult(c.env.DB, taskId, content, agentAddress || null);
+  return c.json({ ok: true, taskId });
+});
+
+app.get("/results/:taskId", async (c) => {
+  const taskId = parseInt(c.req.param("taskId"));
+  const result = await getResult(c.env.DB, taskId);
+  if (!result) return c.json({ error: "No result stored for this task" }, 404);
+  return c.json(result);
 });
 
 // ─── Admin: manual sync trigger ───────────────────────────────────────────────

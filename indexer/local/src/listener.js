@@ -92,7 +92,7 @@ async function handleEvent(contract, provider, eventName, ev) {
   switch (eventName) {
     case "AgentRegistered":
       console.log(`[event] AgentRegistered: ${args.agentId} @ ${args.wallet}`);
-      await syncAgent(contract, args.wallet, blockNumber);
+      await syncAgent(contract, args.wallet, blockNumber, provider);
       break;
     case "TaskPosted":
       console.log(`[event] TaskPosted #${args.taskId} reward=${ethers.formatEther(args.reward)} OKB`);
@@ -115,7 +115,7 @@ async function handleEvent(contract, provider, eventName, ev) {
     case "TaskCompleted":
       console.log(`[event] TaskCompleted #${args.taskId} winner=${args.winner} score=${args.score}`);
       await syncTask(contract, provider, Number(args.taskId), blockNumber, null, transactionHash);
-      await syncAgent(contract, args.winner, blockNumber);
+      await syncAgent(contract, args.winner, blockNumber, provider);
       break;
     case "ConsolationPaid":
       console.log(`[event] ConsolationPaid #${args.taskId} → ${args.agent}`);
@@ -158,21 +158,23 @@ async function syncTask(contract, provider, taskId, blockNumber, postTx = null, 
   }
 }
 
-async function syncAgent(contract, wallet, blockNumber) {
+async function syncAgent(contract, wallet, blockNumber, provider) {
   try {
-    const [info, rep] = await Promise.all([
+    const [info, rep, block] = await Promise.all([
       contract.agents(wallet),
       contract.getAgentReputation(wallet),
+      provider.getBlock(blockNumber),
     ]);
     if (!info.registered) return;
     upsertAgent({
       wallet,
+      owner: info.owner !== ethers.ZeroAddress ? info.owner : null,
       agentId: info.agentId,
       metadata: info.metadata,
       tasksCompleted: Number(rep.completed),
       tasksAttempted: Number(rep.attempted),
       totalScore: Number(info.totalScore),
-      registeredAt: blockNumber,
+      registeredAt: block ? block.timestamp : blockNumber,
     });
   } catch (e) {
     console.error(`[listener] syncAgent ${wallet} failed:`, e.message);

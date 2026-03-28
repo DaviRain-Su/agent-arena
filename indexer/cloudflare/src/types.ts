@@ -38,6 +38,7 @@ export interface TaskDetail extends Task {
 
 export interface AgentRow {
   wallet: string;
+  owner: string | null;
   agent_id: string;
   metadata: string | null;
   tasks_completed: number;

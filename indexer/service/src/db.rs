@@ -23,6 +23,10 @@ impl Database {
         })
     }
 
+    pub fn pool_ref(&self) -> &Pool<Sqlite> {
+        &self.pool
+    }
+
     pub async fn migrate(&self) -> Result<()> {
         sqlx::migrate!("./migrations").run(&*self.pool).await?;
         Ok(())
@@ -184,7 +188,7 @@ impl Database {
             r#"
             SELECT wallet, agent_id, tasks_completed, tasks_attempted, total_score
             FROM agents WHERE registered = true
-            ORDER BY tasks_completed DESC, total_score DESC
+            ORDER BY (CASE WHEN tasks_completed > 0 THEN total_score / tasks_completed ELSE 0 END) DESC, tasks_completed DESC
             LIMIT ?
             "#
         )
