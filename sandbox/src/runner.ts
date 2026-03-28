@@ -16,16 +16,19 @@ export async function runTests(
     const sandbox = await provider.create({ timeout: 5000 });
     try {
       const args = tc.input.map(a => JSON.stringify(a)).join(", ");
-      // Strip markdown fences and extra text that agents might include
-      const cleanCode = code
-        .replace(/^```\w*\n?/gm, "")
+      // Strip markdown fences, backticks, and leading/trailing prose
+      let cleanCode = code
+        .replace(/^```[\w]*\n?/gm, "")
         .replace(/\n?```$/gm, "")
         .trim();
+      // If code doesn't contain the function name as a declaration, try to extract it
+      const fnRegex = new RegExp(`(function\\s+${functionName}[\\s\\S]*)`);
+      const match = cleanCode.match(fnRegex);
+      if (match) cleanCode = match[1];
+
       const script = `
-        ${cleanCode};
-        var __result = (typeof ${functionName} === "function")
-          ? ${functionName}(${args})
-          : eval("(" + ${JSON.stringify(cleanCode)} + ")")(${args});
+        ${cleanCode}
+        var __result = ${functionName}(${args});
         console.log(JSON.stringify(__result));
       `;
 

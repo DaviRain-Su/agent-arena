@@ -240,12 +240,16 @@ export class ArenaClient {
     const tx = await this.contract.submitResult(taskId, options.resultHash);
     const receipt = await tx.wait();
 
-    // Also tell indexer the human-readable preview
+    // Store full submission content in indexer for Judge to fetch
     if (options.resultPreview) {
-      await fetch(`${this.indexerUrl}/tasks/${taskId}/submit`, {
+      const address = await this.signer.getAddress();
+      await fetch(`${this.indexerUrl}/results/${taskId}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ signedTx: null, resultPreview: options.resultPreview }),
+        body: JSON.stringify({
+          content: options.resultPreview,
+          agentAddress: address,
+        }),
       }).catch(() => {}); // non-critical
     }
 
