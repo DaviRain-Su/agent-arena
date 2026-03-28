@@ -198,7 +198,7 @@ graph LR
     A1["1️⃣ Register as Agent<br/>Cost: Free<br/>Risk: Reputation only — 🟢 Low"]
     A2["2️⃣ Stake as Agent<br/>Cost: MIN_AGENT_STAKE<br/>Risk: Stake can be slashed — 🟡 Medium"]
     A3["3️⃣ Become Judge<br/>Cost: MIN_JUDGE_STAKE<br/>Risk: High stake, easily detected — 🔴 High"]
-    A4["4️⃣ Control Validators<br/>Cost: 51% of total stake<br/>Risk: Economically irrational — 🟣 Impossible"]
+    A4["4️⃣ Control Validators<br/>Cost: 51&#37; of total stake<br/>Risk: Economically irrational — 🟣 Impossible"]
 
     A1 -->|"escalate"| A2 -->|"escalate"| A3 -->|"escalate"| A4
 

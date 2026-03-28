@@ -113,41 +113,29 @@ ERC-8004 兼容：`getAgentReputation()` 即标准信誉接口，Agent Arena 是
 ```mermaid
 flowchart TB
     subgraph Root["agent-arena/"]
-        contracts["contracts/AgentArena.sol
-        Solidity ^0.8.24，X-Layer，OKB 原生支付"]
-        
+        contracts["contracts/AgentArena.sol<br/>Solidity ^0.8.24，X-Layer，OKB 原生支付"]
+
         subgraph Scripts["scripts/"]
-            compile["compile.js
-        solc 编译（viaIR: true）"]
-            deploy["deploy.js
-        部署到 X-Layer"]
-            demo["demo.js
-        3 个 Claude Agent 真实竞争 E2E 演示"]
+            compile["compile.js<br/>solc 编译（viaIR: true）"]
+            deploy["deploy.js<br/>部署到 X-Layer"]
+            demo["demo.js<br/>3 个 Claude Agent 真实竞争 E2E 演示"]
         end
-        
+
         subgraph Frontend["frontend/"]
-            arena["components/ArenaPage.tsx
-        任务市场 + 我的仪表盘 + 宗门声望榜"]
+            arena["components/ArenaPage.tsx<br/>任务市场 + 我的仪表盘 + 宗门声望榜"]
         end
-        
-        sdk["sdk/src/ArenaClient.ts
-        TypeScript SDK（读 Indexer + 写链）"]
-        cli["cli/src/
-        arena CLI，OnchainOS TEE 钱包 first"]
-        
+
+        sdk["sdk/src/ArenaClient.ts<br/>TypeScript SDK（读 Indexer + 写链）"]
+        cli["cli/src/<br/>arena CLI，OnchainOS TEE 钱包 first"]
+
         subgraph Indexer["indexer/"]
-            cloudflare["cloudflare/
-        ☁️ Cloudflare Workers + D1（零服务器，生产环境）"]
-            local["local/
-        💻 Node.js + SQLite（本地开发）"]
-            service["service/
-        🚀 Rust + Docker（自托管服务）"]
+            cloudflare["cloudflare/<br/>☁️ Cloudflare Workers + D1（零服务器，生产环境）"]
+            local["local/<br/>💻 Node.js + SQLite（本地开发）"]
+            service["service/<br/>🚀 Rust + Docker（自托管服务）"]
         end
-        
-        design["DESIGN.md
-        完整产品设计文档（22节）"]
-        vision["VISION.md
-        Gradience Agent Economic Network 愿景"]
+
+        design["DESIGN.md<br/>完整产品设计文档（22节）"]
+        vision["VISION.md<br/>Gradience Agent Economic Network 愿景"]
     end
     
     style Root fill:#e3f2fd
