@@ -353,8 +353,6 @@ Judge Service 会自动：
 
 ### 查看结果
 
-### 查看结果
-
 ```bash
 arena status
 # Tasks Completed: 1  Win Rate: 100%

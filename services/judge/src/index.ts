@@ -19,18 +19,9 @@
 import { ethers } from "ethers";
 import { config } from "dotenv";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { AGENT_ARENA_ABI } from "./abi.js";
 
 config();
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Load ABI from artifacts
-const ABI = JSON.parse(
-  readFileSync(join(__dirname, "../../../artifacts/AgentArena.json"), "utf8")
-).abi;
 
 // Config
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -43,7 +34,7 @@ if (!PRIVATE_KEY) {
   process.exit(1);
 }
 
-// Claude client (optional - if not provided, uses test case evaluation only)
+// Claude client (optional - if not provided, uses automatic evaluation only)
 const anthropic = process.env.ANTHROPIC_API_KEY 
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
@@ -79,11 +70,13 @@ class JudgeService {
   private contract: ethers.Contract;
   private running = false;
   private lastBlock: number = 0;
+  // Track already judged tasks to avoid re-judging
+  private judgedTasks = new Set<number>();
 
   constructor() {
     this.provider = new ethers.JsonRpcProvider(RPC_URL);
     this.signer = new ethers.Wallet(PRIVATE_KEY!, this.provider);
-    this.contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, this.signer);
+    this.contract = new ethers.Contract(CONTRACT_ADDRESS, AGENT_ARENA_ABI, this.signer);
   }
 
   async start() {
@@ -91,7 +84,7 @@ class JudgeService {
     console.log(`Judge Address: ${this.signer.address}`);
     console.log(`Contract:      ${CONTRACT_ADDRESS}`);
     console.log(`RPC:           ${RPC_URL}`);
-    console.log(`Claude API:    ${anthropic ? "✅ Enabled" : "⚠️  Disabled (test cases only)"}\n`);
+    console.log(`Claude API:    ${anthropic ? "✅ Enabled" : "⚠️  Disabled (automatic only)"}\n`);
 
     // Verify judge address matches contract
     const judgeAddress = await this.contract.judgeAddress();
@@ -136,22 +129,37 @@ class JudgeService {
       const agent = event.args?.agent;
       const resultHash = event.args?.resultHash;
       
+      // Skip already judged tasks
+      if (this.judgedTasks.has(taskId)) {
+        console.log(`⏭️  Task #${taskId} already judged, skipping`);
+        continue;
+      }
+      
       console.log(`📥 Task #${taskId} submitted by ${agent}`);
-      console.log(`   Result: ${resultHash}`);
+      console.log(`   Result CID: ${resultHash}`);
 
       // Fetch task details
       const task = await this.contract.tasks(taskId) as Task;
       
-      // Check if already judged
+      // Check if already judged (on-chain status)
       if (task.status !== 1) { // Not InProgress
-        console.log(`   Skipping: status = ${task.status}`);
+        console.log(`   Skipping: status = ${task.status} (not InProgress)`);
+        this.judgedTasks.add(taskId);
+        continue;
+      }
+
+      // Fetch actual submission content
+      const submission = await this.fetchSubmission(resultHash);
+      if (!submission) {
+        console.error(`   ❌ Failed to fetch submission content from ${resultHash}`);
         continue;
       }
 
       // Evaluate
       try {
-        const evaluation = await this.evaluate(task, resultHash);
+        const evaluation = await this.evaluate(task, submission);
         console.log(`   Score: ${evaluation.score}/100`);
+        console.log(`   Breakdown:`, evaluation.breakdown);
         console.log(`   Winner: ${evaluation.winner}`);
 
         // Submit on-chain
@@ -164,6 +172,9 @@ class JudgeService {
         console.log(`   Tx: ${tx.hash}`);
         await tx.wait();
         console.log(`   ✅ Settled\n`);
+        
+        // Mark as judged
+        this.judgedTasks.add(taskId);
       } catch (e) {
         console.error(`   ❌ Evaluation failed: ${e instanceof Error ? e.message : String(e)}\n`);
       }
@@ -172,20 +183,71 @@ class JudgeService {
     this.lastBlock = currentBlock;
   }
 
-  private async evaluate(task: Task, resultHash: string): Promise<EvaluationResult> {
+  /**
+   * Fetch submission content from various sources
+   * - ipfs://...  -> fetch from IPFS gateway
+   * - eval:...    -> base64 decoded content (for testing)
+   * - http://...  -> direct fetch
+   * - raw text    -> return as-is
+   */
+  private async fetchSubmission(resultHash: string): Promise<string | null> {
+    // Handle eval: base64 encoded content (used in testing)
+    if (resultHash.startsWith("eval:")) {
+      try {
+        return Buffer.from(resultHash.slice(5), "base64").toString("utf8");
+      } catch {
+        return resultHash; // return raw if decode fails
+      }
+    }
+
+    // Handle ipfs:// URIs
+    if (resultHash.startsWith("ipfs://")) {
+      const cid = resultHash.slice(7);
+      const gateways = [
+        `https://ipfs.io/ipfs/${cid}`,
+        `https://gateway.pinata.cloud/ipfs/${cid}`,
+        `https://cloudflare-ipfs.com/ipfs/${cid}`,
+      ];
+      
+      for (const gateway of gateways) {
+        try {
+          const response = await fetch(gateway, { timeout: 10000 } as any);
+          if (response.ok) {
+            return await response.text();
+          }
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    }
+
+    // Handle http/https URLs
+    if (resultHash.startsWith("http://") || resultHash.startsWith("https://")) {
+      try {
+        const response = await fetch(resultHash, { timeout: 10000 } as any);
+        if (response.ok) {
+          return await response.text();
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    // Return raw string (for testing/simple submissions)
+    return resultHash;
+  }
+
+  private async evaluate(task: Task, submission: string): Promise<EvaluationResult> {
     // Parse evaluation standard from task.evaluationCID
     const evalType = this.parseEvalType(task.evaluationCID);
-    
-    // Fetch submission content (simplified - assume resultHash is the answer)
-    // In production, fetch from IPFS or other storage
-    const submission = resultHash;
 
     if (evalType === "test_cases") {
       return this.evaluateWithTestCases(task, submission);
     } else if (evalType === "judge_prompt" && anthropic) {
       return this.evaluateWithClaude(task, submission);
     } else {
-      // Default: manual/automatic fallback
+      // Default: automatic evaluation
       return this.evaluateAutomatic(task, submission);
     }
   }
@@ -202,21 +264,56 @@ class JudgeService {
     return "manual";
   }
 
+  /**
+   * Evaluate using test cases extracted from the task description
+   * This is a placeholder - real implementation would run actual tests
+   */
   private async evaluateWithTestCases(task: Task, submission: string): Promise<EvaluationResult> {
-    // Simple test case evaluation (60% of score)
-    // Run submission against test cases
-    // For demo: assume 60% correctness
+    console.log(`   Running test case evaluation...`);
     
-    const correctness = 60;
-    const codeQuality = 20;  // Would need code analysis
-    const efficiency = 10;   // Would need performance testing
+    // TODO: Implement actual test case execution
+    // For now, do a basic sanity check on the submission
     
-    const score = correctness + codeQuality + efficiency;
+    let correctness = 0;
+    
+    // Check if submission looks like valid code
+    const hasFunction = /function|def|fn\s/.test(submission);
+    const hasLogic = submission.length > 50;
+    const noSyntaxError = !submission.includes("SyntaxError") && !submission.includes("Error:");
+    
+    if (hasFunction && hasLogic && noSyntaxError) {
+      correctness = 40; // Base score for valid-looking code
+      
+      // Check for basic correctness indicators
+      if (submission.includes("return") || submission.includes("print")) {
+        correctness += 20;
+      }
+    }
+    
+    // Code quality heuristics
+    let codeQuality = 10;
+    const hasComments = submission.includes("//") || submission.includes("/*") || submission.includes("#");
+    const hasProperIndent = submission.match(/^\s{2,4}/m);
+    const reasonableLength = submission.length < 5000;
+    
+    if (hasComments) codeQuality += 10;
+    if (hasProperIndent) codeQuality += 5;
+    if (reasonableLength) codeQuality += 5;
+    
+    // Efficiency heuristics  
+    let efficiency = 10;
+    const noNestedLoops = (submission.match(/for|while/g) || []).length <= 2;
+    const usesRecursion = submission.includes(submission.match(/function|def/)?.[0] || "");
+    
+    if (noNestedLoops) efficiency += 5;
+    if (!usesRecursion) efficiency += 5; // iterative often better than recursive
+    
+    const score = Math.min(100, correctness + codeQuality + efficiency);
     
     return {
       score,
       winner: task.assignedAgent,
-      reasonURI: `ipfs://eval-${Date.now()}`,
+      reasonURI: `eval://test-cases-${Date.now()}`,
       breakdown: { correctness, codeQuality, efficiency }
     };
   }
@@ -226,52 +323,86 @@ class JudgeService {
       throw new Error("Claude API not configured");
     }
 
-    const prompt = `You are an expert code reviewer. Evaluate this solution:
+    console.log(`   Sending to Claude for evaluation...`);
 
-Task: ${task.description}
+    const prompt = `You are an expert code reviewer. Evaluate this solution objectively.
 
-Submission: ${submission}
+TASK DESCRIPTION:
+${task.description}
 
-Score from 0-100 based on:
-- Correctness (40%): Does it solve the problem?
-- Code Quality (30%): Clean, readable, maintainable?
-- Efficiency (30%): Optimized solution?
+SUBMITTED SOLUTION:
+\`\`\`
+${submission}
+\`\`\`
 
-Respond ONLY with JSON: {"score": number, "breakdown": {"correctness": number, "codeQuality": number, "efficiency": number}, "feedback": "string"}`;
+Evaluate based on:
+1. Correctness (40 points): Does it solve the problem? Handle edge cases?
+2. Code Quality (30 points): Clean, readable, well-structured? Proper naming?
+3. Efficiency (30 points): Good time/space complexity? No unnecessary operations?
 
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-5-20251101",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }]
-    });
+Respond with ONLY a JSON object in this exact format:
+{"score": 85, "breakdown": {"correctness": 35, "codeQuality": 25, "efficiency": 25}, "feedback": "Brief explanation of the score"}`;
 
-    const content = response.content[0].type === "text" ? response.content[0].text : "";
-    
-    // Extract JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Claude response did not contain valid JSON");
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",  // Fixed model ID
+        max_tokens: 2000,
+        messages: [{ role: "user", content: prompt }]
+      });
+
+      const content = response.content[0].type === "text" ? response.content[0].text : "";
+      
+      // Extract JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Claude response did not contain valid JSON");
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
+      
+      // Validate and normalize
+      const score = Math.min(100, Math.max(0, Math.round(result.score || 75)));
+      const breakdown = {
+        correctness: Math.min(40, Math.max(0, result.breakdown?.correctness || 30)),
+        codeQuality: Math.min(30, Math.max(0, result.breakdown?.codeQuality || 25)),
+        efficiency: Math.min(30, Math.max(0, result.breakdown?.efficiency || 20))
+      };
+      
+      return {
+        score,
+        winner: task.assignedAgent,
+        reasonURI: `eval://claude-${Date.now()}`,
+        breakdown
+      };
+    } catch (e) {
+      console.error(`   Claude evaluation failed: ${e instanceof Error ? e.message : String(e)}`);
+      console.log(`   Falling back to automatic evaluation...`);
+      return this.evaluateAutomatic(task, submission);
     }
-
-    const result = JSON.parse(jsonMatch[0]);
-    
-    return {
-      score: Math.min(100, Math.max(0, result.score)),
-      winner: task.assignedAgent,
-      reasonURI: `ipfs://claude-eval-${Date.now()}`,
-      breakdown: result.breakdown || { correctness: 0, codeQuality: 0, efficiency: 0 }
-    };
   }
 
   private async evaluateAutomatic(task: Task, submission: string): Promise<EvaluationResult> {
-    // Default automatic evaluation
-    // For MVP: pass with minimum score if submission exists
-    console.log(`   Using automatic evaluation (submission received)`);
+    console.log(`   Using automatic evaluation...`);
     
+    // Basic sanity checks
+    const hasContent = submission.length > 20;
+    const looksLikeCode = /[{}();=]|function|def|class/.test(submission);
+    
+    if (!hasContent || !looksLikeCode) {
+      // Submission is garbage - fail it
+      return {
+        score: 30,
+        winner: task.assignedAgent,
+        reasonURI: `eval://auto-fail-${Date.now()}`,
+        breakdown: { correctness: 10, codeQuality: 10, efficiency: 10 }
+      };
+    }
+    
+    // Pass with minimum viable score
     return {
-      score: 75,  // Default passing score
+      score: 75,
       winner: task.assignedAgent,
-      reasonURI: `ipfs://auto-eval-${Date.now()}`,
+      reasonURI: `eval://auto-pass-${Date.now()}`,
       breakdown: { correctness: 30, codeQuality: 25, efficiency: 20 }
     };
   }

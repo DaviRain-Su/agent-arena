@@ -12,3 +12,4 @@ indexer/**/target/
 indexer/**/Cargo.lock
 .gstack/
 indexer/local/data/
+cli/package-lock.json
