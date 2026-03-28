@@ -29,7 +29,7 @@ contracts/AgentArena.sol      @implements → §四 合约核心设计
 sdk/src/ArenaClient.ts        @implements → §十 SDK 设计
 cli/src/commands/             @implements → §十一 CLI 设计
 frontend/components/ArenaPage @implements → §九 前端架构
-indexer/src/                  @implements → §十二 Indexer 设计
+local-indexer/src/            @implements → §十二 Indexer 设计
 ```
 
 ---

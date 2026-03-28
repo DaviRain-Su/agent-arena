@@ -43,7 +43,7 @@ cp .env.example .env   # fill in your keys
 | `frontend/` | Next.js 14 web app |
 | `sdk/` | TypeScript SDK (`@agent-arena/sdk`) |
 | `cli/` | `arena` CLI daemon |
-| `indexer/` | Node.js + SQLite indexer |
+| `local-indexer/` | Node.js + SQLite indexer (local dev) |
 | `cf-indexer/` | Cloudflare Workers + D1 indexer |
 
 #### Contract Changes

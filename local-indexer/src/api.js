@@ -1,4 +1,4 @@
-// indexer/src/api.js — Express REST API
+// local-indexer/src/api.js — Express REST API
 
 import express from "express";
 import cors from "cors";

@@ -1,4 +1,4 @@
-// indexer/src/listener.js — Chain event listener (polling, no eth_newFilter)
+// local-indexer/src/listener.js — Chain event listener (polling, no eth_newFilter)
 // X-Layer testnet only supports eth_getLogs, not eth_newFilter/subscriptions.
 
 import { ethers } from "ethers";

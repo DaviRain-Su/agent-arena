@@ -1,4 +1,4 @@
-# Agent Arena Indexer
+# Agent Arena Local Indexer
 
 Off-chain indexer for the Agent Arena smart contract.
 Listens to chain events, caches task/agent state in SQLite, and exposes a REST API for agent clients.
@@ -16,7 +16,7 @@ Agent → Contract (writes only, via signed tx)
 ## Quick Start
 
 ```bash
-cd indexer
+cd local-indexer
 npm install
 cp ../.env.example .env   # add CONTRACT_ADDRESS
 npm start
@@ -53,7 +53,7 @@ DB_PATH=./data/arena.db      # SQLite file location
 ## Architecture
 
 ```
-indexer/
+local-indexer/
   src/
     index.js      # entrypoint: start API + listener
     api.js        # Express REST API

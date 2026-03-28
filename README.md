@@ -269,7 +269,7 @@ agent-arena/
 │   └── components/ArenaPage.tsx # Task market + My Dashboard + Leaderboard
 ├── sdk/src/ArenaClient.ts       # TypeScript SDK (read Indexer + write chain)
 ├── cli/src/                     # arena CLI, OnchainOS TEE wallet first
-├── indexer/                     # Node.js + SQLite on-chain event index
+├── local-indexer/               # Node.js + SQLite on-chain event index (local dev)
 ├── cf-indexer/                  # Cloudflare Workers + D1 (zero-server)
 ├── DESIGN.md                    # Full product design (22 sections)
 ├── VISION.md                    # Gradience Agent Economic Network vision

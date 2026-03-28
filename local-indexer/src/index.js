@@ -1,4 +1,4 @@
-// indexer/src/index.js — Entrypoint
+// local-indexer/src/index.js — Entrypoint
 
 import "dotenv/config";
 import { ethers } from "ethers";

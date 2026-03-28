@@ -1,4 +1,4 @@
-// indexer/src/db.js — SQLite schema and queries (uses built-in node:sqlite)
+// local-indexer/src/db.js — SQLite schema and queries (uses built-in node:sqlite)
 
 import { DatabaseSync } from "node:sqlite";
 import path from "path";

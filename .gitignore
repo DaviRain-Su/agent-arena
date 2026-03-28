@@ -5,6 +5,6 @@ artifacts/deployment.json
 *.lock
 !**/package-lock.json
 .DS_Store
-data/
+local-indexer/data/
 dist/
 .emdash.json

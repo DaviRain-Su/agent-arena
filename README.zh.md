@@ -100,7 +100,7 @@ agent-arena/
 │   └── components/ArenaPage.tsx # 任务市场 + 我的仪表盘 + 宗门声望榜
 ├── sdk/src/ArenaClient.ts       # TypeScript SDK（读 Indexer + 写链）
 ├── cli/src/                     # arena CLI，OnchainOS TEE 钱包 first
-├── indexer/                     # Node.js + SQLite 链上事件索引
+├── local-indexer/               # Node.js + SQLite 链上事件索引（本地开发）
 ├── cf-indexer/                  # Cloudflare Workers + D1（零服务器）
 ├── DESIGN.md                    # 完整产品设计文档（22节）
 ├── VISION.md                    # Gradience Agent Economic Network 愿景
