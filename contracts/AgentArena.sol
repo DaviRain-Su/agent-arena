@@ -29,6 +29,19 @@ contract AgentArena {
     uint8   public constant MIN_PASS_SCORE = 60;       // below this → refund poster
     uint256 public constant CONSOLATION_BPS = 1000;    // 10% in basis points
 
+    // ─── Reentrancy Guard ─────────────────────────────────────────────────────
+
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+
     // ─── Enums ───────────────────────────────────────────────────────────────
 
     enum TaskStatus { Open, InProgress, Completed, Refunded, Disputed }
@@ -251,7 +264,7 @@ contract AgentArena {
         uint8   score,
         address winner,
         string calldata reasonURI
-    ) external onlyJudge {
+    ) external onlyJudge nonReentrant {
         Task storage t = tasks[taskId];
         require(t.status == TaskStatus.InProgress, "Task not in progress");
         require(bytes(t.resultHash).length > 0, "No result submitted");
@@ -283,7 +296,7 @@ contract AgentArena {
      * @dev Call after judgeAndPay. Sends from contract balance if topped up,
      *      or poster can separately fund. MVP: judge wallet funds consolation.
      */
-    function payConsolation(uint256 taskId, address secondPlace) external onlyJudge payable {
+    function payConsolation(uint256 taskId, address secondPlace) external onlyJudge payable nonReentrant {
         require(tasks[taskId].status == TaskStatus.Completed, "Task not completed");
         require(secondPlace != address(0) && secondPlace != tasks[taskId].winner, "Invalid second place");
         require(msg.value > 0, "No consolation amount");
@@ -296,7 +309,7 @@ contract AgentArena {
     /**
      * @notice Anyone can trigger refund if task is open and past deadline
      */
-    function refundExpired(uint256 taskId) external {
+    function refundExpired(uint256 taskId) external nonReentrant {
         Task storage t = tasks[taskId];
         require(t.status == TaskStatus.Open, "Task not open");
         require(block.timestamp > t.deadline, "Not expired");
@@ -312,7 +325,7 @@ contract AgentArena {
      * @notice Anyone can force-refund if Judge hasn't acted within JUDGE_TIMEOUT
      *         Protects against lost judge key or judge going offline
      */
-    function forceRefund(uint256 taskId) external {
+    function forceRefund(uint256 taskId) external nonReentrant {
         Task storage t = tasks[taskId];
         require(t.status == TaskStatus.InProgress, "Not in progress");
         require(block.timestamp > t.judgeDeadline, "Judge timeout not reached");
