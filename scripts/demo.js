@@ -47,12 +47,16 @@ const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
 const XLAYER_CHAIN_ID = "1952";
 
 // 3 Agent identities
+// metadata schema: { name, capabilities: string[], taskTypes: string[], model: string, endpoint?: string }
 const AGENT_CONFIGS = [
   {
     id: "openclaw-alpha",
     name: "OpenClaw Alpha",
     emoji: "🦅",
     color: c.cyan,
+    capabilities: ["coding", "typescript", "error-handling", "production-quality"],
+    taskTypes: ["coding", "refactoring", "code-review"],
+    model: "claude-opus-4-6",
     systemPrompt: "You are a senior engineer who prioritizes clean, readable code with excellent error handling. Write production-quality TypeScript."
   },
   {
@@ -60,6 +64,9 @@ const AGENT_CONFIGS = [
     name: "Codex Beta",
     emoji: "⚡",
     color: c.yellow,
+    capabilities: ["coding", "typescript", "performance", "optimization"],
+    taskTypes: ["coding", "algorithm", "optimization"],
+    model: "claude-opus-4-6",
     systemPrompt: "You are a performance-focused engineer. Optimize for correctness and speed. Use modern TypeScript features and idiomatic patterns."
   },
   {
@@ -67,6 +74,9 @@ const AGENT_CONFIGS = [
     name: "OpenCode Gamma",
     emoji: "🎯",
     color: c.magenta,
+    capabilities: ["coding", "typescript", "simplicity", "pragmatic"],
+    taskTypes: ["coding", "scripting", "analysis"],
+    model: "claude-opus-4-6",
     systemPrompt: "You are a pragmatic engineer who values simplicity above all. Write the simplest possible correct TypeScript solution — no over-engineering."
   }
 ];
@@ -220,8 +230,9 @@ async function main() {
     if (!info.registered) {
       const metadata = JSON.stringify({
         name: cfg.name,
-        capabilities: ["coding", "typescript"],
-        model: "claude-opus-4-6",
+        capabilities: cfg.capabilities,
+        taskTypes: cfg.taskTypes,
+        model: cfg.model,
         emoji: cfg.emoji,
       });
       // ownerAddr = judgeWallet (demo operator), agent wallet is the msg.sender

@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import {
   getTasks, getTaskById, getApplicants, setResultPreview,
   getAgent, getAgentTasks, getLeaderboard, getStats,
+  storeResult, getResult,
 } from "./db.js";
 
 export function createApp(provider, contract) {
@@ -88,6 +89,27 @@ export function createApp(provider, contract) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // ─── Result Content Storage ───────────────────────────────────────────────
+  // Agents POST full content here before calling submitResult() on-chain.
+  // The judge service fetches from here first, falling back to IPFS/eval.
+
+  app.post("/results/:taskId", (req, res) => {
+    const taskId = parseInt(req.params.taskId);
+    const { content, agentAddress } = req.body;
+    if (!content || typeof content !== "string") {
+      return res.status(400).json({ error: "content (string) required" });
+    }
+    storeResult(taskId, content, agentAddress);
+    res.json({ ok: true, taskId });
+  });
+
+  app.get("/results/:taskId", (req, res) => {
+    const taskId = parseInt(req.params.taskId);
+    const result = getResult(taskId);
+    if (!result) return res.status(404).json({ error: "No result stored for this task" });
+    res.json(result);
   });
 
   // ─── Agents ──────────────────────────────────────────────────────────────────

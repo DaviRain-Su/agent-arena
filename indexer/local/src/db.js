@@ -59,6 +59,13 @@ db.exec(`
     value TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS results (
+    task_id     INTEGER PRIMARY KEY,
+    content     TEXT NOT NULL,
+    agent_address TEXT,
+    stored_at   INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tasks_status   ON tasks(status);
   CREATE INDEX IF NOT EXISTS idx_tasks_poster   ON tasks(poster);
   CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
@@ -305,6 +312,21 @@ export function getStats() {
     totalRewardPaid: String(Number(BigInt(Math.round(row.total_paid_wei || 0))) / 1e18),
     avgScore: Math.round(row.avg_score || 0),
   };
+}
+
+// ─── Result Content ──────────────────────────────────────────────────────────
+
+export function storeResult(taskId, content, agentAddress) {
+  db.prepare(`
+    INSERT OR REPLACE INTO results (task_id, content, agent_address, stored_at)
+    VALUES (:taskId, :content, :agentAddress, :storedAt)
+  `).run({ ':taskId': taskId, ':content': content, ':agentAddress': agentAddress || null, ':storedAt': Date.now() });
+}
+
+export function getResult(taskId) {
+  const row = db.prepare("SELECT * FROM results WHERE task_id = :taskId").get({ ':taskId': taskId });
+  if (!row) return null;
+  return { taskId: row.task_id, content: row.content, agentAddress: row.agent_address, storedAt: row.stored_at };
 }
 
 export default db;

@@ -33,6 +33,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xad869d5901A64F9062bD352CdBc75e35Cd876E09";
 const RPC_URL = process.env.RPC_URL || "https://testrpc.xlayer.tech/terigon";
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000");
+const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:3001";
 
 if (!PRIVATE_KEY) {
   console.error("❌ PRIVATE_KEY required");
@@ -98,6 +99,8 @@ class JudgeService {
   private lastBlock: number = 0;
   // Track already judged tasks to avoid re-judging
   private judgedTasks = new Set<number>();
+  // Track InProgress tasks to monitor for judge deadline expiry
+  private inProgressTasks = new Set<number>();
 
   constructor() {
     this.provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -130,6 +133,9 @@ class JudgeService {
       console.log(`Starting from block ${this.lastBlock}\n`);
     }
 
+    // Backfill InProgress task set from historical events
+    await this.loadInProgressTasks();
+
     this.running = true;
     while (this.running) {
       try {
@@ -145,9 +151,73 @@ class JudgeService {
     this.running = false;
   }
 
+  private async loadInProgressTasks() {
+    console.log("Loading historical InProgress tasks...");
+    try {
+      const currentBlock = await this.provider.getBlockNumber();
+      const events = await this.contract.queryFilter(
+        this.contract.filters.TaskAssigned(),
+        0,
+        currentBlock
+      );
+      for (const event of events) {
+        const taskId = Number((event as any).args?.taskId);
+        if (!this.judgedTasks.has(taskId)) {
+          this.inProgressTasks.add(taskId);
+        }
+      }
+      console.log(`Monitoring ${this.inProgressTasks.size} InProgress task(s) for judge deadline\n`);
+    } catch (e) {
+      console.warn(`Warning: could not load InProgress tasks: ${e instanceof Error ? e.message : String(e)}\n`);
+    }
+  }
+
+  private async checkForceRefundable() {
+    const toRemove: number[] = [];
+    for (const taskId of this.inProgressTasks) {
+      if (this.judgedTasks.has(taskId)) {
+        toRemove.push(taskId);
+        continue;
+      }
+      try {
+        const refundable: boolean = await this.contract.isRefundable(taskId);
+        if (refundable) {
+          console.log(`⏰ Task #${taskId} judge deadline exceeded — calling forceRefund()`);
+          const tx = await this.contract.forceRefund(taskId);
+          await tx.wait();
+          console.log(`   ✅ Refunded task #${taskId} (${tx.hash.slice(0, 18)}...)\n`);
+          toRemove.push(taskId);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // Task already settled or not found — remove from tracking
+        if (msg.includes("not InProgress") || msg.includes("already") || msg.includes("INVALID_ARGUMENT")) {
+          toRemove.push(taskId);
+        } else {
+          console.warn(`   ⚠️  forceRefund check failed for task #${taskId}: ${msg.slice(0, 80)}`);
+        }
+      }
+    }
+    for (const id of toRemove) this.inProgressTasks.delete(id);
+  }
+
   private async poll() {
     const currentBlock = await this.provider.getBlockNumber();
     if (currentBlock <= this.lastBlock) return;
+
+    // Query TaskAssigned events to track new InProgress tasks
+    const assignedEvents = await this.contract.queryFilter(
+      this.contract.filters.TaskAssigned(),
+      this.lastBlock + 1,
+      currentBlock
+    );
+    for (const event of assignedEvents) {
+      const taskId = Number((event as any).args?.taskId);
+      this.inProgressTasks.add(taskId);
+    }
+
+    // Check for tasks whose judge deadline has expired
+    await this.checkForceRefundable();
 
     // Query ResultSubmitted events
     const events = await this.contract.queryFilter(
@@ -182,7 +252,7 @@ class JudgeService {
       }
 
       // Fetch actual submission content
-      const submission = await this.fetchSubmission(resultHash);
+      const submission = await this.fetchSubmission(resultHash, taskId);
       if (!submission) {
         console.error(`   ❌ Failed to fetch submission content from ${resultHash}`);
         continue;
@@ -233,13 +303,30 @@ class JudgeService {
   }
 
   /**
-   * Fetch submission content from various sources
-   * - ipfs://...  -> fetch from IPFS gateway
-   * - eval:...    -> base64 decoded content (for testing)
-   * - http://...  -> direct fetch
-   * - raw text    -> return as-is
+   * Fetch submission content from various sources (priority order):
+   * 1. Local indexer (POST /results/:taskId stores content before on-chain submit)
+   * 2. eval:...    -> base64 decoded content (for testing)
+   * 3. ipfs://...  -> fetch from IPFS gateway
+   * 4. http://...  -> direct fetch
+   * 5. raw text    -> return as-is
    */
-  private async fetchSubmission(resultHash: string): Promise<string | null> {
+  private async fetchSubmission(resultHash: string, taskId?: number): Promise<string | null> {
+    // Try local indexer first (stores full content keyed by taskId)
+    if (taskId !== undefined) {
+      try {
+        const resp = await fetch(`${INDEXER_URL}/results/${taskId}`, { signal: AbortSignal.timeout(5000) });
+        if (resp.ok) {
+          const data = await resp.json() as { content?: string };
+          if (data.content) {
+            console.log(`   📦 Fetched submission from local indexer`);
+            return data.content;
+          }
+        }
+      } catch {
+        // Indexer unavailable — fall through to other methods
+      }
+    }
+
     // Handle eval: base64 encoded content (used in testing)
     if (resultHash.startsWith("eval:")) {
       try {
