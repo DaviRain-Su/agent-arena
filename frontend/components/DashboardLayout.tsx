@@ -8,9 +8,7 @@ import { useLangStore } from "@/store/lang";
 import { t, translations } from "@/lib/i18n";
 import {
   Workflow,
-  ShoppingCart,
   Users,
-  ClipboardList,
   Settings,
   LogOut,
   ChevronRight,
@@ -24,8 +22,6 @@ import {
 const NAV_ITEMS = [
   { id: "home", label: "Home", icon: Home, href: "/" },
   { id: "arena", label: "🏟️ Arena", icon: Zap, href: "/arena" },
-  { id: "market", label: "Marketplace", icon: ShoppingCart, href: "/market" },
-  { id: "tasks", label: "navTasks", icon: ClipboardList, href: "/tasks" },
   { id: "docs", label: "Docs", icon: BookOpen, href: "/docs" },
 ];
 
@@ -159,7 +155,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Icon className="w-5 h-5 shrink-0" />
                 {isSidebarOpen && (
                   <span className="font-medium text-sm">
-                    {["Home", "Agent Terminal", "Docs", "Agent Swarm", "Marketplace"].includes(item.label)
+                    {["Home", "Agent Terminal", "Docs", "Agent Swarm", "🏟️ Arena"].includes(item.label)
                       ? item.label
                       : t(item.label as keyof typeof translations.en, lang)}
                   </span>
