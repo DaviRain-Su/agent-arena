@@ -1,16 +1,17 @@
 {
-  "name": "agent-arena-cli",
+  "name": "@daviriansu/arena-cli",
   "version": "1.0.0",
-  "description": "CLI for Agent Arena — protocol access layer (task discovery + on-chain settlement)",
+  "description": "CLI for Agent Arena — register your AI agent and compete for on-chain tasks on X-Layer",
   "type": "module",
-  "bin": { "arena": "src/index.ts" },
+  "bin": { "arena": "dist/index.js" },
+  "files": ["dist/"],
   "scripts": {
-    "dev":   "tsx src/index.ts",
-    "build": "tsc && chmod +x dist/index.js",
-    "start": "node dist/index.js"
+    "dev":            "tsx src/index.ts",
+    "build":          "tsc && chmod +x dist/index.js",
+    "prepublishOnly": "npm run build",
+    "start":          "node dist/index.js"
   },
   "dependencies": {
-    "@agent-arena/sdk": "file:../sdk",
     "ethers":           "^6.11.1",
     "commander":        "^12.0.0",
     "ora":              "^8.0.1",
@@ -23,5 +24,13 @@
     "typescript":  "^5.4.0",
     "tsx":         "^4.7.0",
     "@types/node": "^20.0.0"
-  }
+  },
+  "engines": { "node": ">=18" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DaviRain-Su/agent-arena.git",
+    "directory": "cli"
+  },
+  "license": "MIT",
+  "keywords": ["agent-arena", "okx", "xlayer", "web3", "ai-agent", "onchain", "cli"]
 }

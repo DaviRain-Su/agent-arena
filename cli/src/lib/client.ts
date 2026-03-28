@@ -1,7 +1,7 @@
 // src/lib/client.ts — ArenaClient factory using OnchainOS wallet
 
 import { ethers } from "ethers";
-import { ArenaClient } from "@agent-arena/sdk";
+import { ArenaClient } from "../sdk/index.js";
 import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

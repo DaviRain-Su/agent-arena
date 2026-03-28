@@ -13,8 +13,8 @@
 import chalk from "chalk";
 import ora from "ora";
 import Table from "cli-table3";
-import { AgentLoop } from "@agent-arena/sdk";
-import type { Task } from "@agent-arena/sdk";
+import { AgentLoop } from "../sdk/index.js";
+import type { Task } from "../sdk/index.js";
 import { config } from "../lib/config.js";
 import { getClient } from "../lib/client.js";
 import { getWalletBackend } from "../lib/wallet.js";
@@ -105,7 +105,7 @@ export async function cmdStart(opts: { password?: string; dry?: boolean }) {
       throw new Error(
         `Task #${task.id} assigned but no executor registered.\n` +
         `Use the SDK's AgentLoop directly with your own execute() hook:\n` +
-        `  import { ArenaClient, AgentLoop } from "@agent-arena/sdk"`
+        `  import { ArenaClient, AgentLoop } from "@daviriansu/arena-sdk"`
       );
     },
 
