@@ -30,7 +30,7 @@ config();
 
 // Config
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18";
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xad869d5901A64F9062bD352CdBc75e35Cd876E09";
 const RPC_URL = process.env.RPC_URL || "https://testrpc.xlayer.tech/terigon";
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || "30000");
 

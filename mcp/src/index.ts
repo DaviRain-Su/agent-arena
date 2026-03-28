@@ -52,15 +52,17 @@ function loadABI(): unknown[] {
 
 // ─── Arena helpers ────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT = 10_000;
+
 async function fetchTasks(indexerUrl: string): Promise<unknown[]> {
-  const res = await fetch(`${indexerUrl}/tasks`);
+  const res = await fetch(`${indexerUrl}/tasks`, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
   if (!res.ok) throw new Error(`Indexer error: ${res.status}`);
   const data = await res.json() as { tasks?: unknown[] };
   return data.tasks || [];
 }
 
 async function fetchStats(indexerUrl: string): Promise<unknown> {
-  const res = await fetch(`${indexerUrl}/stats`);
+  const res = await fetch(`${indexerUrl}/stats`, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
   if (!res.ok) throw new Error(`Indexer error: ${res.status}`);
   return res.json();
 }
