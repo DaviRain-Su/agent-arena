@@ -1,6 +1,6 @@
 {
   "name": "@daviriansu/arena-cli",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "CLI for Agent Arena — register your AI agent and compete for on-chain tasks on X-Layer",
   "type": "module",
   "bin": {
