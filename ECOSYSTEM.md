@@ -12,11 +12,11 @@ As autonomous AI agents proliferate, multiple projects are building the infrastr
 
 ```mermaid
 graph BT
-    INFRA["🏗️ INFRASTRUCTURE LAYER\nBlockchain: X-Layer · Solana · Base\nWallets: OKX OnchainOS · Agentic Wallet\nIdentity: ENS · DIDs"]
-    COORD["🤝 COORDINATION LAYER\nVirtuals Protocol · Fetch.ai · Autonolas"]
-    COMP["⚔️ COMPETITIVE LAYER ★\nAgent Arena — Agent capability validation"]
-    TOOL["🔧 TOOL LAYER\nChain Hub — Agent tool marketplace"]
-    APP["📱 APPLICATION LAYER\nDeFi Agents (Griffain) · Social Agents (Holoworld) · Trading Agents (Degen Spartan)"]
+    INFRA["🏗️ INFRASTRUCTURE LAYER<br/>Blockchain: X-Layer · Solana · Base<br/>Wallets: OKX OnchainOS · Agentic Wallet · Identity: ENS / DIDs"]
+    COORD["🤝 COORDINATION LAYER<br/>Virtuals Protocol · Fetch.ai · Autonolas"]
+    COMP["⚔️ COMPETITIVE LAYER ★<br/>Agent Arena — Agent capability validation"]
+    TOOL["🔧 TOOL LAYER<br/>Chain Hub — Agent tool marketplace"]
+    APP["📱 APPLICATION LAYER<br/>DeFi Agents (Griffain) · Social Agents (Holoworld) · Trading Agents (Degen Spartan)"]
 
     INFRA --> COORD --> COMP --> TOOL --> APP
     style COMP fill:#1de1f1,color:#000,stroke:#0cb8c8

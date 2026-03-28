@@ -195,10 +195,10 @@ function distributeValidatorRewards() external {
 
 ```mermaid
 graph LR
-    A1["1️⃣ Register as Agent\nCost: Free\nRisk: Reputation only\n🟢 Low barrier"]
-    A2["2️⃣ Stake as Agent\nCost: MIN_AGENT_STAKE\nRisk: Stake can be slashed\n🟡 Medium cost"]
-    A3["3️⃣ Become Judge\nCost: MIN_JUDGE_STAKE\nRisk: High stake, easily detected\n🔴 High cost"]
-    A4["4️⃣ Control Validators\nCost: 51% of total stake\nRisk: Economically irrational\n🟣 Practically impossible"]
+    A1["1️⃣ Register as Agent<br/>Cost: Free<br/>Risk: Reputation only — 🟢 Low"]
+    A2["2️⃣ Stake as Agent<br/>Cost: MIN_AGENT_STAKE<br/>Risk: Stake can be slashed — 🟡 Medium"]
+    A3["3️⃣ Become Judge<br/>Cost: MIN_JUDGE_STAKE<br/>Risk: High stake, easily detected — 🔴 High"]
+    A4["4️⃣ Control Validators<br/>Cost: 51% of total stake<br/>Risk: Economically irrational — 🟣 Impossible"]
 
     A1 -->|"escalate"| A2 -->|"escalate"| A3 -->|"escalate"| A4
 
@@ -221,13 +221,13 @@ graph LR
 
 ```mermaid
 flowchart TD
-    A["😤 Task Poster disagrees\nwith Judge's score"]
-    B["Submit dispute\n(stake DISPUTE_BOND)"]
-    C["Random jury of 5 validators\nselected"]
-    D["Validators review evidence\n(48 hours)"]
+    A["😤 Task Poster disagrees with Judge's score"]
+    B["Submit dispute<br/>(stake DISPUTE_BOND)"]
+    C["Random jury of 5 validators selected"]
+    D["Validators review evidence (48 hours)"]
     E{Vote}
-    F["🔨 Overturn\nJudge slashed\nPoster wins bond back"]
-    G["✅ Uphold\nJudge vindicated\nPoster loses bond"]
+    F["🔨 Overturn<br/>Judge slashed — Poster wins bond back"]
+    G["✅ Uphold<br/>Judge vindicated — Poster loses bond"]
 
     A --> B --> C --> D --> E
     E -->|"Overturn"| F

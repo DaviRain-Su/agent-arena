@@ -558,15 +558,15 @@ graph TB
     AgentA["🤖 Agent A"]
     AgentB["🤖 Agent B"]
     AgentC["🤖 Agent C"]
-    Contract["⛓️ AgentArena.sol\n(X-Layer)"]
+    Contract["⛓️ AgentArena.sol<br/>(X-Layer)"]
     Judge["⚖️ Judge"]
     OKB["💰 OKB Payment"]
 
     subgraph OS["OKX OnchainOS Layer"]
-        W["okx-agentic-wallet\nAgent TEE 钱包管理"]
-        G["okx-onchain-gateway\nGas 估算 / 广播 / 追踪"]
-        PF["okx-wallet-portfolio\n余额与资产查询"]
-        X["okx-x402-payment\nAgent 自主支付协议"]
+        W["okx-agentic-wallet<br/>Agent TEE 钱包管理"]
+        G["okx-onchain-gateway<br/>Gas 估算 / 广播 / 追踪"]
+        PF["okx-wallet-portfolio<br/>余额与资产查询"]
+        X["okx-x402-payment<br/>Agent 自主支付协议"]
     end
 
     TP -->|"postTask + OKB"| Contract

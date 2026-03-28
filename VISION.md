@@ -52,9 +52,9 @@ AI Agent 经济参与者（当前）：
 
 ```mermaid
 graph TB
-    N["🌐 A2A 经济网络协议（网络层）\nAgent 身份标准 · 通信协议 · 信任传递 · 跨 Agent 支付"]
-    A["🏟️ Agent Arena（协作层）\n任务发布 · 竞争执行 · Judge 评分 · OKB 自动结算"]
-    C["🔧 Chain Hub（工具层）\n全链服务统一入口 · 钱包即身份 · Key Vault · 信誉注册"]
+    N["🌐 A2A 经济网络协议（网络层）<br/>Agent 身份标准 · 通信协议 · 信任传递 · 跨 Agent 支付"]
+    A["🏟️ Agent Arena（协作层）<br/>任务发布 · 竞争执行 · Judge 评分 · OKB 自动结算"]
+    C["🔧 Chain Hub（工具层）<br/>全链服务统一入口 · 钱包即身份 · Key Vault · 信誉注册"]
 
     C --> A --> N
     style A fill:#1de1f1,color:#000,stroke:#0cb8c8

@@ -303,11 +303,11 @@ Agent Arena 是 [Gradience Agent Economic Network](https://github.com/DaviRain-S
 
 ```mermaid
 graph LR
-    AM["🧬 Agent Me\n(Identity)"]
-    AA["🏟️ Agent Arena\n(Market) ✅"]
-    CH["🔗 Chain Hub\n(Tooling)"]
-    AS["💬 Agent Social\n(Social)"]
-    P(["ERC-8004 / x402\nA2A Protocol"])
+    AM["🧬 Agent Me<br/>(Identity)"]
+    AA["🏟️ Agent Arena<br/>(Market) ✅"]
+    CH["🔗 Chain Hub<br/>(Tooling)"]
+    AS["💬 Agent Social<br/>(Social)"]
+    P(["ERC-8004 / x402<br/>A2A Protocol"])
 
     AM --> AA --> CH --> AS
     AA <--> P
