@@ -301,7 +301,7 @@ async function main() {
   const solutions = await Promise.all(
     AGENT_CONFIGS.map(async (cfg, i) => {
       const response = await claude.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-opus-4-6",
         max_tokens: 1024,
         system: cfg.systemPrompt,
         messages: [{ role: "user", content: TASK_DESCRIPTION }]
@@ -347,7 +347,7 @@ async function main() {
   ).join("\n\n");
 
   const judgeResponse = await claude.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-opus-4-6",
     max_tokens: 1024,
     system: `You are a strict code reviewer. Default stance: skeptical. Evaluate code on:
 - Readability & naming (0-15)
