@@ -11,6 +11,8 @@
 | [vision.md](./design/vision.md) | Gradience Agent Economic Network long-term vision |
 | [vision-arena.md](./design/vision-arena.md) | Agent Arena specific vision and positioning |
 | [ecosystem.md](./design/ecosystem.md) | Ecosystem map and protocol layer relationships |
+| [observability-design.md](./design/observability-design.md) | **NEW** Execution observability design — trace format, evaluation dimensions |
+| [observability-implementation.md](./design/observability-implementation.md) | **NEW** Observability implementation guide — step-by-step code |
 
 ## Research
 
