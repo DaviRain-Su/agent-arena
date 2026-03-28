@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "./types.js";
 import { syncEvents } from "./sync.js";
+import { require402 } from "./x402.js";
 import {
   getTasks, getTaskById, getApplicants, setResultPreview,
   getAgent, getAgentTasks, getLeaderboard, getStats,
@@ -158,6 +159,156 @@ app.get("/results/:taskId", async (c) => {
   if (!result) return c.json({ error: "No result stored for this task" }, 404);
   return c.json(result);
 });
+
+// ─── Premium (x402-gated) endpoints ───────────────────────────────────────────
+//
+// All /premium/* routes require an OKB payment on X-Layer Mainnet.
+// Flow:
+//   1. GET /premium/... → 402 + payment requirements JSON
+//   2. Send OKB tx to PAYMENT_RECIPIENT on X-Layer
+//   3. GET /premium/... with X-PAYMENT: <txHash> → 200 + X-PAYMENT-RESPONSE: accepted
+
+const PRICE = "0.001"; // OKB per request
+
+// Full agent analytics — complete task history + category win rates + score trend
+app.get(
+  "/premium/agents/:address/analytics",
+  require402({ amountOKB: PRICE, description: "Full agent analytics: complete history, category win rates, score trend" }),
+  async (c) => {
+    const address = c.req.param("address") ?? "";
+    const agent = await getAgent(c.env.DB, address);
+    if (!agent) return c.json({ error: "Agent not found" }, 404);
+
+    const allTasks = await getAgentTasks(c.env.DB, address, "all");
+
+    // Compute category breakdown from task descriptions (prefix pattern: [category])
+    const categoryStats: Record<string, { attempted: number; won: number; totalScore: number }> = {};
+    const scoreTrend: Array<{ taskId: number; score: number | null; won: boolean; ts: number }> = [];
+
+    for (const t of allTasks) {
+      const catMatch = t.description?.match(/^\[([^\]]+)\]/);
+      const cat = catMatch ? catMatch[1] : "other";
+      if (!categoryStats[cat]) categoryStats[cat] = { attempted: 0, won: 0, totalScore: 0 };
+      categoryStats[cat].attempted++;
+      const won = t.winner?.toLowerCase() === address.toLowerCase();
+      if (won) categoryStats[cat].won++;
+      if (t.score != null) categoryStats[cat].totalScore += t.score as number;
+      scoreTrend.push({ taskId: t.id, score: t.score, won, ts: t.createdAt });
+    }
+
+    const categories = Object.entries(categoryStats).map(([cat, s]) => ({
+      category: cat,
+      attempted: s.attempted,
+      won: s.won,
+      winRate: s.attempted ? Math.round((s.won / s.attempted) * 100) : 0,
+      avgScore: s.attempted ? Math.round(s.totalScore / s.attempted) : 0,
+    }));
+
+    return c.json({
+      agent,
+      fullHistory: allTasks,
+      categories,
+      scoreTrend: scoreTrend.sort((a, b) => a.ts - b.ts),
+      totalTasks: allTasks.length,
+    });
+  },
+);
+
+// Full task result — submitted code + judge reasoning (not stored in free tier)
+app.get(
+  "/premium/results/:taskId",
+  require402({ amountOKB: PRICE, description: "Full task result: submitted code content + judge reasoning URI" }),
+  async (c) => {
+    const taskId = parseInt(c.req.param("taskId") ?? "0");
+    const task = await getTaskById(c.env.DB, taskId);
+    if (!task) return c.json({ error: "Task not found" }, 404);
+
+    const result = await getResult(c.env.DB, taskId);
+
+    return c.json({
+      task: {
+        id: task.id,
+        description: task.description,
+        status: task.status,
+        score: task.score,
+        winner: task.winner,
+        reasonURI: task.reasonURI,
+        resultHash: task.resultHash,
+      },
+      result: result ?? null,
+      evaluationCID: task.evaluationCID,
+    });
+  },
+);
+
+// Full competition record — all applicants + scores for a completed task
+app.get(
+  "/premium/competition/:taskId",
+  require402({ amountOKB: PRICE, description: "Full competition record: all applicants, scores, and ranking for a task" }),
+  async (c) => {
+    const taskId = parseInt(c.req.param("taskId") ?? "0");
+    const task = await getTaskById(c.env.DB, taskId);
+    if (!task) return c.json({ error: "Task not found" }, 404);
+
+    const applicants = await getApplicants(c.env.DB, taskId);
+
+    // applicants already contains agentId + avgScore from the JOIN
+    const profiles = (applicants as Array<{ wallet: string; agentId: string | null; avgScore: number; tasksCompleted: number }>)
+      .map(a => ({ address: a.wallet, agentId: a.agentId, avgScore: a.avgScore, tasksCompleted: a.tasksCompleted }));
+
+    return c.json({
+      task: {
+        id: task.id,
+        description: task.description,
+        reward: task.reward,
+        status: task.status,
+        winner: task.winner,
+        score: task.score,
+        assignedAgent: task.assignedAgent,
+      },
+      competitionSize: applicants.length,
+      applicants: profiles,
+      result: await getResult(c.env.DB, taskId),
+    });
+  },
+);
+
+// Discovery endpoint — list all premium routes and their prices (free)
+app.get("/premium", (c) =>
+  c.json({
+    description: "Agent Arena Premium Data API — powered by x402 OKB micropayments",
+    paymentAsset: "OKB",
+    network: "X-Layer Mainnet (chainId 196)",
+    payTo: c.env.PAYMENT_RECIPIENT ?? "not configured",
+    pricePerRequest: PRICE + " OKB",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/premium/agents/:address/analytics",
+        description: "Full agent analytics: complete task history, category win rates, score trend over time",
+        price: PRICE + " OKB",
+      },
+      {
+        method: "GET",
+        path: "/premium/results/:taskId",
+        description: "Full task result: submitted code content and on-chain judge reasoning URI",
+        price: PRICE + " OKB",
+      },
+      {
+        method: "GET",
+        path: "/premium/competition/:taskId",
+        description: "Full competition record: all applicants, profiles, and ranking for a completed task",
+        price: PRICE + " OKB",
+      },
+    ],
+    howTo: [
+      "1. Call any /premium/* endpoint — receive HTTP 402 with payment details",
+      "2. Send " + PRICE + " OKB to payTo address on X-Layer Mainnet",
+      "3. Retry the same request with header: X-PAYMENT: <your_tx_hash>",
+      "4. Receive HTTP 200 + X-PAYMENT-RESPONSE: accepted",
+    ],
+  }),
+);
 
 // ─── Admin: manual sync trigger ───────────────────────────────────────────────
 // Protected by a simple secret header for emergency use

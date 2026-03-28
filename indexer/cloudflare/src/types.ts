@@ -6,6 +6,8 @@ export interface Env {
   XLAYER_RPC: string;
   XLAYER_RPC_FALLBACK?: string;
   SYNC_BATCH_SIZE?: string;
+  /** x402: OKB recipient address for premium API payments */
+  PAYMENT_RECIPIENT?: string;
 }
 
 export type TaskStatus = "open" | "in_progress" | "completed" | "refunded" | "disputed";
