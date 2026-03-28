@@ -8,7 +8,7 @@ import { ethers } from "ethers";
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { createRequire } from "module";
-import { createHash } from "crypto";
+
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -438,7 +438,10 @@ Return ONLY valid JSON, no explanation outside JSON:
   console.log(`  ${Di("Winner:")}  ${winner.agentName} (${winnerAddr.slice(0,10)}...)`);
   console.log(`  ${Di("Score:")}   ${winner.total}/100 (${winner.testResults.filter(r=>r.passed).length}/${TEST_CASES.length} tests passed)`);
   console.log(`  ${Di("Reward:")}  ${ethers.formatEther(REWARD)} OKB auto-paid on-chain`);
-  console.log(`  ${Di("2nd:")}     ${secondPlace.agentName} received ${ethers.formatEther(consolation)} OKB consolation`);
+  if (secondPlace) {
+    const consolationAmt = REWARD / 10n;
+    console.log(`  ${Di("2nd:")}     ${secondPlace.agentName} received ${ethers.formatEther(consolationAmt)} OKB consolation`);
+  }
   console.log(`  ${Di("Judge:")}   Reason stored on-chain: ${reasonURI}`);
   console.log(`  ${Di("Wallet:")}  HD-derived demo wallets`);
 
