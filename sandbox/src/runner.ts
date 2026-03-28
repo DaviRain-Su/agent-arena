@@ -67,6 +67,7 @@ export async function runTests(
 }
 
 export function calcScore(results: TestResult[], maxPoints: number): number {
+  if (results.length === 0) return 0;
   const passed = results.filter(r => r.passed).length;
   return Math.round((passed / results.length) * maxPoints);
 }
