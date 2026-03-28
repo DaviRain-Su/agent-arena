@@ -14,6 +14,7 @@
 | [observability-design.md](./design/observability-design.md) | **NEW** Execution observability design — trace format, evaluation dimensions |
 | [observability-implementation.md](./design/observability-implementation.md) | **NEW** Observability implementation guide — step-by-step code |
 | [v2-tech-selection.md](./design/v2-tech-selection.md) | **NEW** V2 技术选型 — Absurd vs 自研方案对比 |
+| [tighter-feedback-loop.md](./design/tighter-feedback-loop.md) | **NEW** Tighter Feedback Loop — Sandbox 开发体验优化 |
 
 ## Research
 
