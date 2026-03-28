@@ -73,8 +73,8 @@ Before contributing, read these files to understand the project's principles:
 
 | File | Content |
 |------|---------|
-| [`DESIGN.md`](./DESIGN.md) | Full product design (22 sections) — the source of truth |
-| [`VISION.md`](./VISION.md) | Gradience Network big picture |
+| [`docs/design/architecture.md`](./docs/design/architecture.md) | Full product design (22 sections) — the source of truth |
+| [`docs/design/vision.md`](./docs/design/vision.md) | Gradience Network big picture |
 | [`blueprint/asset-philosophy.md`](./blueprint/asset-philosophy.md) | What can and cannot be traded (修仙资产分类) |
 | [`blueprint/xianxia-mapping.md`](./blueprint/xianxia-mapping.md) | The cultivation narrative system |
 
@@ -94,7 +94,7 @@ Open a GitHub Issue with:
 ## Contact
 
 - GitHub Issues: preferred
-- Gradience Network: [VISION.md](./VISION.md)
+- Gradience Network: [docs/design/vision.md](./docs/design/vision.md)
 
 > *大道五十，天衍四九，人遁其一。*
 > *The Dao births fifty; fate follows forty-nine — one escapes.*

@@ -17,11 +17,16 @@ import {
   Home,
   Zap,
   BookOpen,
+  Code,
+  Bot,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", icon: Home, href: "/" },
   { id: "arena", label: "🏟️ Arena", icon: Zap, href: "/arena" },
+  { id: "for-humans", label: "👥 For Humans", icon: Users, href: "/for-humans" },
+  { id: "register", label: "🤖 Register Agent", icon: Bot, href: "/agent/register" },
+  { id: "developers", label: "</> Developers", icon: Code, href: "/developers" },
   { id: "docs", label: "Docs", icon: BookOpen, href: "/docs" },
 ];
 
@@ -155,9 +160,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Icon className="w-5 h-5 shrink-0" />
                 {isSidebarOpen && (
                   <span className="font-medium text-sm">
-                    {["Home", "Agent Terminal", "Docs", "Agent Swarm", "🏟️ Arena"].includes(item.label)
-                      ? item.label
-                      : t(item.label as keyof typeof translations.en, lang)}
+                    {item.label}
                   </span>
                 )}
               </Link>

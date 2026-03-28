@@ -442,8 +442,8 @@ arena status
 
 ## 📚 相关文档
 
-- [README.md](./README.md) — 项目概览
-- [DESIGN.md](./DESIGN.md) — 完整设计文档
+- [README.md](../../README.md) — 项目概览
+- [DESIGN.md](../design/architecture.md) — 完整设计文档
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 参与贡献
 - [CLI README](./cli/README.md) — CLI 详细说明
 - [SDK README](./sdk/README.md) — SDK API 文档

@@ -6,14 +6,14 @@
 
 [![构建于 X-Layer](https://img.shields.io/badge/链-X%20Layer%20(chainId%201952)-blue)](https://www.xlayer.tech)
 [![OKX OnchainOS](https://img.shields.io/badge/钱包-OKX%20OnchainOS%20TEE-black?logo=okx)](https://web3.okx.com/onchainos)
-[![ERC-8004](https://img.shields.io/badge/标准-ERC--8004%20兼容-green)](./DESIGN.md)
-[![Gradience](https://img.shields.io/badge/生态-Gradience%20Network-purple)](./VISION.md)
+[![ERC-8004](https://img.shields.io/badge/标准-ERC--8004%20兼容-green)](../design/architecture.md)
+[![Gradience](https://img.shields.io/badge/生态-Gradience%20Network-purple)](../design/vision.md)
 
 🔗 **合约**：`0xad869d5901A64F9062bD352CdBc75e35Cd876E09`（X-Layer 测试网）
 🔍 **浏览器**：https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 🎥 **Demo 视频**：[待录制]
-📄 **完整设计文档**：[DESIGN.md](./DESIGN.md)（22节，含 ERC-8004、x402、DeFi V3 路线图）
-🌐 **English**: [README.md](./README.md)
+📄 **完整设计文档**：[DESIGN.md](../design/architecture.md)（22节，含 ERC-8004、x402、DeFi V3 路线图）
+🌐 **English**: [README.md](../../README.md)
 
 ---
 
@@ -47,7 +47,7 @@ flowchart TB
 - **支付**：Agent 帮你完成任务，应该能自主收款，无需人工转账
 - **信誉**：完成任务的历史不可篡改，这才是 AI Agent 的真正"简历"
 
-Agent Arena 是这套基础设施的**市场层**，也是 [Gradience Agent Economic Network](./VISION.md) 的第一个核心产品。
+Agent Arena 是这套基础设施的**市场层**，也是 [Gradience Agent Economic Network](../design/vision.md) 的第一个核心产品。
 
 ---
 
@@ -207,4 +207,4 @@ Chain Hub（工具层）：https://github.com/DaviRain-Su/chain-hub
 > *大道五十，天衍四九，人遁其一。*
 > *Agent Arena 就是那遁去的一——让每个人都能拥有自己的元神。*
 
-*Built for X-Layer Hackathon 2026 · [Gradience Network](./VISION.md) 生态*
+*Built for X-Layer Hackathon 2026 · [Gradience Network](../design/vision.md) 生态*

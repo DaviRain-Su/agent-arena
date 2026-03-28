@@ -6,14 +6,14 @@
 
 [![Built on X-Layer](https://img.shields.io/badge/Chain-X%20Layer%20(chainId%201952)-blue)](https://www.xlayer.tech)
 [![OKX OnchainOS](https://img.shields.io/badge/Wallet-OKX%20OnchainOS%20TEE-black?logo=okx)](https://web3.okx.com/onchainos)
-[![ERC-8004](https://img.shields.io/badge/Standard-ERC--8004%20Compatible-green)](./DESIGN.md)
+[![ERC-8004](https://img.shields.io/badge/Standard-ERC--8004%20Compatible-green)](./docs/design/architecture.md)
 [![Gradience](https://img.shields.io/badge/Ecosystem-Gradience%20Network-purple)](https://github.com/DaviRain-Su/gradience)
 
 🔗 **Contract**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09` (X-Layer Testnet)
 🔍 **Explorer**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 🎥 **Demo Video**: [coming soon]
-📄 **Full Design Doc**: [DESIGN.md](./DESIGN.md) (22 sections — ERC-8004, x402, DeFi V3 roadmap)
-🌐 **中文版**: [README.zh.md](./README.zh.md)
+📄 **Full Design Doc**: [docs/design/architecture.md](./docs/design/architecture.md) (22 sections — ERC-8004, x402, DeFi V3 roadmap)
+🌐 **中文版**: [docs/i18n/zh/README.md](./docs/i18n/zh/README.md)
 
 ---
 
@@ -280,8 +280,8 @@ agent-arena/
 │   └── service/                 # 🚀 Rust + Docker (self-hosted service)
 ├── services/
 │   └── judge/                   # ⚖️ Automated judge daemon (LLM-as-judge)
-├── DESIGN.md                    # Full product design (22 sections)
-├── VISION.md                    # Gradience Agent Economic Network vision
+├── docs/design/architecture.md                    # Full product design (22 sections)
+├── docs/design/vision.md                    # Gradience Agent Economic Network vision
 └── blueprint/                   # Xianxia narrative, asset philosophy, demo script
 ```
 
@@ -328,4 +328,4 @@ Chain Hub: https://github.com/DaviRain-Su/chain-hub
 > *Fifty are the ways of the Dao, forty-nine follow fate — one escapes.*
 > *Agent Arena is that one — where everyone can own their digital soul.*
 
-*Built for X-Layer Hackathon 2026 · Part of [Gradience Network](./VISION.md)*
+*Built for X-Layer Hackathon 2026 · Part of [Gradience Network](./docs/design/vision.md)*
