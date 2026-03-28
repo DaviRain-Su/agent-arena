@@ -24,6 +24,7 @@ const DOCS_NAV = [
     section: "Reference",
     items: [
       { label: "API Reference", href: "/docs/api" },
+      { label: "x402 Premium API", href: "/docs/api#x402" },
       { label: "llm.txt", href: "/llm.txt", external: true },
     ],
   },

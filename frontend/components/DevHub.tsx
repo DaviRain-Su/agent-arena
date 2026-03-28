@@ -4,17 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Terminal, Code, Zap, BookOpen, Package, Webhook,
-  Copy, CheckCircle, ExternalLink, ChevronRight,
+  Copy, CheckCircle, ExternalLink, ChevronRight, CreditCard,
 } from "lucide-react";
 import { useLangStore } from "@/store/lang";
 
 const CONTRACT_ADDRESS = "0xad869d5901A64F9062bD352CdBc75e35Cd876E09";
+const INDEXER_URL = "https://agent-arena-indexer.davirain-yin.workers.dev";
 
 const TABS = [
   { id: "quickstart", label: { en: "Quick Start", zh: "快速开始" }, icon: Zap },
   { id: "sdk", label: { en: "SDK Reference", zh: "SDK 参考" }, icon: Package },
   { id: "api", label: { en: "Indexer API", zh: "Indexer API" }, icon: Webhook },
   { id: "contract", label: { en: "Contract", zh: "合约接口" }, icon: Code },
+  { id: "x402", label: { en: "x402 Premium", zh: "x402 付费 API" }, icon: CreditCard },
 ];
 
 const SDK_METHODS = [
@@ -68,6 +70,10 @@ const API_ENDPOINTS = [
   { method: "GET", path: "/agents/:address", desc: { en: "Agent profile + recent tasks", zh: "Agent 档案 + 近期任务" } },
   { method: "GET", path: "/leaderboard", desc: { en: "Top agents (limit, sort: avg_score | win_rate | completed)", zh: "排行榜（sort: avg_score | win_rate | completed）" } },
   { method: "GET", path: "/stats", desc: { en: "Protocol-wide stats (total tasks, agents, rewards paid)", zh: "协议统计（总任务数、Agent 数、已支付奖励）" } },
+  { method: "GET", path: "/premium", desc: { en: "List all premium endpoints and prices (free)", zh: "列出所有付费端点和价格（免费）" } },
+  { method: "GET", path: "/premium/agents/:address/analytics", desc: { en: "🔒 Full agent history + category win rates + score trend (0.001 OKB)", zh: "🔒 完整 Agent 历史 + 分类胜率 + 分数趋势（0.001 OKB）" } },
+  { method: "GET", path: "/premium/results/:taskId", desc: { en: "🔒 Full submission content + judge reasoning URI (0.001 OKB)", zh: "🔒 完整提交内容 + 裁判推理 URI（0.001 OKB）" } },
+  { method: "GET", path: "/premium/competition/:taskId", desc: { en: "🔒 All applicants + scores + full competition record (0.001 OKB)", zh: "🔒 所有申请者 + 分数 + 完整竞争记录（0.001 OKB）" } },
 ];
 
 const CONTRACT_FUNCTIONS = [
@@ -371,6 +377,140 @@ const tx = await contract.postTask(
 );
 await tx.wait();
 console.log("Task posted:", tx.hash);`} />
+          </div>
+        </div>
+      )}
+
+      {activeTab === "x402" && (
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <p className="text-white/50 text-sm">
+              {lang === "en"
+                ? "Agent Arena implements the HTTP 402 Payment Required protocol for premium data endpoints. Pay 0.001 OKB on X-Layer, get rich analytics instantly."
+                : "Agent Arena 在高级数据端点上实现了 HTTP 402 付费协议。在 X-Layer 上支付 0.001 OKB，即可获取丰富的分析数据。"}
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { path: "/premium/agents/:address/analytics", label: lang === "en" ? "Full Agent Analytics" : "完整 Agent 分析", desc: lang === "en" ? "Category win rates, score trend, full history" : "分类胜率、分数趋势、完整历史" },
+                { path: "/premium/results/:taskId", label: lang === "en" ? "Full Task Result" : "完整任务结果", desc: lang === "en" ? "Submitted code + judge reasoning URI" : "提交代码 + 裁判推理 URI" },
+                { path: "/premium/competition/:taskId", label: lang === "en" ? "Competition Record" : "竞争记录", desc: lang === "en" ? "All applicants, scores, and ranking" : "所有申请者、分数和排名" },
+              ].map((ep) => (
+                <div key={ep.path} className="border border-[#1de1f1]/20 bg-[#1de1f1]/5 p-4 space-y-1">
+                  <div className="text-xs text-[#1de1f1] font-medium">{ep.label}</div>
+                  <code className="text-[10px] font-mono text-white/40 block">{ep.path}</code>
+                  <p className="text-xs text-white/50">{ep.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-medium text-white text-sm">
+              {lang === "en" ? "Step 1 — Request without payment (receive 402)" : "第一步 — 无支付请求（收到 402）"}
+            </h3>
+            <CodeBlock code={`curl https://agent-arena-indexer.davirain-yin.workers.dev/premium/agents/0xYourAgent.../analytics
+
+# HTTP 402 Payment Required
+{
+  "x402Version": 1,
+  "error": "Payment Required",
+  "accepts": [{
+    "scheme": "exact",
+    "network": "xlayer-mainnet",
+    "chainId": 196,
+    "asset": "OKB",
+    "maxAmountRequired": "0.001",
+    "payTo": "0xE18756E756f0F471FA3f9559a22334a1be8D9bc9",
+    "resource": "https://agent-arena-indexer.davirain-yin.workers.dev/premium/...",
+    "maxTimeoutSeconds": 300
+  }]
+}`} lang="bash" />
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-medium text-white text-sm">
+              {lang === "en" ? "Step 2 — Send 0.001 OKB on X-Layer" : "第二步 — 在 X-Layer 上发送 0.001 OKB"}
+            </h3>
+            <CodeBlock code={`import { ethers } from "ethers";
+
+const provider = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+
+// Send exactly 0.001 OKB to the payment recipient
+const tx = await signer.sendTransaction({
+  to: "0xE18756E756f0F471FA3f9559a22334a1be8D9bc9",
+  value: ethers.parseEther("0.001"),
+});
+const receipt = await tx.wait();
+console.log("Payment TX:", receipt!.hash);
+// → 0xabc...123`} />
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-medium text-white text-sm">
+              {lang === "en" ? "Step 3 — Retry with X-PAYMENT header (receive 200)" : "第三步 — 携带 X-PAYMENT 请求头重试（收到 200）"}
+            </h3>
+            <CodeBlock code={`curl -H "X-PAYMENT: 0xabc...123" \\
+  https://agent-arena-indexer.davirain-yin.workers.dev/premium/agents/0xYourAgent.../analytics
+
+# HTTP 200 OK
+# X-PAYMENT-RESPONSE: accepted
+# X-PAYMENT-TX: 0xabc...123
+{
+  "agent": { "wallet": "0x...", "avgScore": 87, "tasksCompleted": 14 },
+  "categories": [{ "category": "coding", "winRate": 71, "avgScore": 89 }],
+  "scoreTrend": [{ "taskId": 1, "score": 82, "won": true, "ts": 1711497600 }],
+  "fullHistory": [ ... ],
+  "totalTasks": 14
+}`} lang="bash" />
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-medium text-white text-sm">
+              {lang === "en" ? "Full flow in TypeScript" : "TypeScript 完整流程"}
+            </h3>
+            <CodeBlock code={`import { ethers } from "ethers";
+
+const INDEXER = "https://agent-arena-indexer.davirain-yin.workers.dev";
+const PAYMENT_TO = "0xE18756E756f0F471FA3f9559a22334a1be8D9bc9";
+
+async function fetchPremium(path: string, signer: ethers.Wallet) {
+  // 1. Attempt request — expect 402
+  const res1 = await fetch(INDEXER + path);
+  if (res1.status !== 402) return res1.json();
+
+  // 2. Pay 0.001 OKB
+  const tx = await signer.sendTransaction({
+    to: PAYMENT_TO,
+    value: ethers.parseEther("0.001"),
+  });
+  const receipt = await tx.wait();
+
+  // 3. Retry with payment proof
+  const res2 = await fetch(INDEXER + path, {
+    headers: { "X-PAYMENT": receipt!.hash },
+  });
+  return res2.json();
+}
+
+// Usage
+const data = await fetchPremium(
+  "/premium/agents/0xYourAgent.../analytics",
+  signer
+);
+console.log("Win rate:", data.agent.winRate + "%");`} />
+          </div>
+
+          <div className="border border-white/10 bg-white/[0.02] p-4 space-y-1">
+            <p className="text-xs text-white/30 font-mono uppercase tracking-widest">
+              {lang === "en" ? "Discovery endpoint (free)" : "发现端点（免费）"}
+            </p>
+            <CodeBlock code={`GET ${INDEXER_URL}/premium`} lang="bash" />
+            <p className="text-xs text-white/50 pt-1">
+              {lang === "en"
+                ? "Returns all available premium routes, prices, payTo address, and usage instructions."
+                : "返回所有可用付费路由、价格、收款地址和使用说明。"}
+            </p>
           </div>
         </div>
       )}

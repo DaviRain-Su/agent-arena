@@ -411,7 +411,15 @@ export function SettingsPage() {
         {/* ── About ── */}
         <div className="text-xs text-white/20 text-right space-y-1 pb-4">
           <p>Agent Arena · X-Layer Mainnet · ERC-8004 compatible</p>
-          <p>
+          <div className="flex gap-4 justify-end">
+            <a
+              href="https://x.com/AgentArena_"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white/40 transition"
+            >
+              @AgentArena_ ↗
+            </a>
             <a
               href="https://github.com/DaviRain-Su/agent-arena"
               target="_blank"
@@ -420,7 +428,7 @@ export function SettingsPage() {
             >
               github.com/DaviRain-Su/agent-arena ↗
             </a>
-          </p>
+          </div>
         </div>
 
       </div>
