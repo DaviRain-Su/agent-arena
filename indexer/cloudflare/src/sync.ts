@@ -59,9 +59,9 @@ function encodeSelector(sig: string): string {
   // We'll compute keccak256 via a simple approach using SubtleCrypto
   // For MVP: hardcode the selectors we need
   const selectors: Record<string, string> = {
-    "tasks(uint256)":               "0xb5d87e12",
-    "agents(address)":              "0xb2bdfa7b",
-    "getAgentReputation(address)":  "0xbf91eb55",
+    "tasks(uint256)":               "0x8d977672",
+    "agents(address)":              "0xfd66091e",
+    "getAgentReputation(address)":  "0xebeae587",
   };
   return selectors[sig] || "0x00000000";
 }
@@ -74,19 +74,27 @@ function encodeAddress(addr: string): string {
   return addr.toLowerCase().replace("0x", "").padStart(64, "0");
 }
 
-function decodeUint256(hex: string, offset: number): bigint {
-  return BigInt("0x" + hex.slice(offset * 2, (offset + 32) * 2));
+// All offsets below are WORD indices (0, 1, 2, ...) where each word = 32 bytes = 64 hex chars
+function decodeUint256(hex: string, wordIndex: number): bigint {
+  const start = wordIndex * 64;
+  return BigInt("0x" + hex.slice(start, start + 64));
 }
 
-function decodeAddress(hex: string, offset: number): string {
-  return "0x" + hex.slice(offset * 2 + 24, offset * 2 + 64);
+function decodeAddress(hex: string, wordIndex: number): string {
+  const start = wordIndex * 64;
+  return "0x" + hex.slice(start + 24, start + 64);
 }
 
-function decodeString(hex: string, offset: number): string {
+function decodeString(hex: string, wordIndex: number): string {
   try {
-    const strOffset = Number(decodeUint256(hex, offset)) * 2;
-    const len = Number(decodeUint256(hex, strOffset / 2));
-    const strHex = hex.slice(strOffset + 64, strOffset + 64 + len * 2);
+    // wordIndex points to a slot containing a byte-offset pointer to the string data
+    const byteOffset = Number(decodeUint256(hex, wordIndex));
+    // byteOffset is relative to start of the data, convert to word index
+    const strWordIndex = byteOffset / 32;
+    const len = Number(decodeUint256(hex, strWordIndex));
+    const dataStart = (strWordIndex + 1) * 64;
+    const strHex = hex.slice(dataStart, dataStart + len * 2);
+    if (!strHex) return "";
     const bytes = new Uint8Array(strHex.match(/.{1,2}/g)!.map(b => parseInt(b, 16)));
     return new TextDecoder().decode(bytes);
   } catch {
@@ -112,10 +120,10 @@ async function getTaskFromChain(rpcUrl: string, contractAddr: string, taskId: nu
     const assignedAgent = decodeAddress(result, 9);
     const score      = Number(decodeUint256(result, 11));
     const winner     = decodeAddress(result, 13);
-    const description    = decodeString(result, Number(decodeUint256(result, 2)) / 32);
-    const evaluationCid  = decodeString(result, Number(decodeUint256(result, 3)) / 32);
-    const resultHash     = decodeString(result, Number(decodeUint256(result, 10)) / 32);
-    const reasonUri      = decodeString(result, Number(decodeUint256(result, 12)) / 32);
+    const description    = decodeString(result, 2);
+    const evaluationCid  = decodeString(result, 3);
+    const resultHash     = decodeString(result, 10);
+    const reasonUri      = decodeString(result, 12);
 
     return {
       id, poster, description, evaluationCid,
@@ -148,8 +156,8 @@ async function getAgentFromChain(rpcUrl: string, contractAddr: string, wallet: s
     const repData = encodeSelector("getAgentReputation(address)") + encodeAddress(wallet);
     const repResult = (await ethCall(rpcUrl, contractAddr, repData)).slice(2);
 
-    const agentId  = decodeString(result, Number(decodeUint256(result, 2)) / 32);
-    const metadata = decodeString(result, Number(decodeUint256(result, 3)) / 32);
+    const agentId  = decodeString(result, 2);
+    const metadata = decodeString(result, 3);
     const tasksCompleted = Number(decodeUint256(repResult, 1));
     const tasksAttempted = Number(decodeUint256(repResult, 2));
     const totalScore = Number(decodeUint256(result, 5));

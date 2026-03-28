@@ -20,11 +20,11 @@ crons = ["*/1 * * * *"]
 [vars]
 CONTRACT_ADDRESS = "0x964441A7f7B7E74291C05e66cb98C462c4599381"
 XLAYER_RPC = "https://rpc.xlayer.tech"
-XLAYER_RPC_FALLBACK = "https://rpc.xlayer.tech"
-SYNC_BATCH_SIZE = "50"    # blocks per eth_getLogs call (X-Layer limits to 100)
+XLAYER_RPC_FALLBACK = "https://xlayer-mainnet.g.alchemy.com/v2/m2tKWaM3AGwrMPEaOKaEx"
+SYNC_BATCH_SIZE = "50"    # blocks per eth_getLogs call (official RPC supports 100)
 
 # For production mainnet:
-# XLAYER_RPC = "https://rpc.xlayer.tech"
+# XLAYER_RPC = "https://xlayer-mainnet.g.alchemy.com/v2/m2tKWaM3AGwrMPEaOKaEx"
 
 # ─── Local dev ────────────────────────────────────────────────────────────────
 [dev]
