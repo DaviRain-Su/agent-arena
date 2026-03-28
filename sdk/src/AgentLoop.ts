@@ -23,6 +23,10 @@ export class AgentLoop {
   private client: ArenaClient;
   private cfg: Required<AgentLoopConfig>;
   private running = false;
+  /** Tasks that failed execution — don't retry them */
+  private failedTaskIds = new Set<number>();
+  /** Tasks waiting for external execution result */
+  private pendingExternalTasks = new Map<number, Task>();
 
   constructor(client: ArenaClient, config: AgentLoopConfig) {
     this.client = client;
@@ -33,6 +37,12 @@ export class AgentLoop {
       log: (msg) => console.log(`[agent] ${msg}`),
       ...config,
     };
+  }
+
+  /** Mark a task as completed externally (for --exec=false mode) */
+  completeTaskExternally(taskId: number, result: { resultHash: string; resultPreview: string }) {
+    this.pendingExternalTasks.delete(taskId);
+    return this.client.submitResult(taskId, result);
   }
 
   /** Start the autonomous loop */
@@ -66,13 +76,36 @@ export class AgentLoop {
     this.cfg.log(`Assigned tasks: ${assigned.length}`);
 
     for (const task of assigned) {
+      // Skip tasks that already failed execution
+      if (this.failedTaskIds.has(task.id)) {
+        this.cfg.log(`Skipping task #${task.id}: execution previously failed`);
+        continue;
+      }
+
+      // Skip tasks waiting for external execution
+      if (this.pendingExternalTasks.has(task.id)) {
+        this.cfg.log(`Task #${task.id}: waiting for external execution`);
+        continue;
+      }
+
       this.cfg.log(`Executing task #${task.id}: ${task.description.slice(0, 60)}...`);
       try {
         const result = await this.cfg.execute(task);
         const txHash = await this.client.submitResult(task.id, result);
         this.cfg.log(`Submitted task #${task.id} → tx ${txHash.slice(0, 18)}...`);
       } catch (e: unknown) {
-        this.cfg.log(`Execution failed for #${task.id}: ${e instanceof Error ? e.message : String(e)}`);
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        this.cfg.log(`Execution failed for #${task.id}: ${errorMsg}`);
+
+        // Check if this is an "executor not configured" error
+        // In that case, mark as pending external execution instead of failed
+        if (errorMsg.includes("[EXECUTOR_NOT_CONFIGURED]") || errorMsg.includes("--exec")) {
+          this.pendingExternalTasks.set(task.id, task);
+          this.cfg.log(`Task #${task.id} marked for external execution — provide result manually or use --exec`);
+        } else {
+          // Real execution failure — don't retry
+          this.failedTaskIds.add(task.id);
+        }
       }
     }
   }

@@ -120,10 +120,10 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
       }
 
       // No executor: emit JSON to stdout for caller to handle
-      console.log(JSON.stringify({ event: "task_assigned", task }));
+      console.log(JSON.stringify({ event: "task_assigned_needs_exec", task, hint: "Use --exec or SDK to execute this task" }));
       throw new Error(
-        `Task #${task.id} assigned — pipe to an executor with --exec, or use the SDK directly:\n` +
-        `  import { ArenaClient, AgentLoop } from "@daviriansu/arena-sdk"`
+        `[EXECUTOR_NOT_CONFIGURED] Task #${task.id} assigned but no --exec provided. ` +
+        `Provide result via SDK or restart with --exec.`
       );
     },
 

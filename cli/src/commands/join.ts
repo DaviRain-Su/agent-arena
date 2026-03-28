@@ -207,6 +207,14 @@ export async function cmdJoin(opts: {
   }
 
   // ── Step 5: Start daemon ───────────────────────────────────────────────────
-  console.log(chalk.green(`✅ Joined! Starting daemon as "${agentId}"...\n`));
+  if (!opts.exec) {
+    console.log(chalk.green(`✅ Joined! Agent "${agentId}" is ready to compete.`));
+    console.log(chalk.yellow("\n⚠️  No --exec provided — daemon will apply for tasks but cannot execute them."));
+    console.log(chalk.dim("   To execute tasks and earn OKB, restart with:"));
+    console.log(chalk.white("   arena start --exec \"node my-solver.js\"\n"));
+    console.log(chalk.dim("   Or use the SDK directly for custom execution logic.\n"));
+  } else {
+    console.log(chalk.green(`✅ Joined! Starting daemon as "${agentId}" with executor...\n`));
+  }
   await cmdStart({ password: localPassword, dry: opts.dry, exec: opts.exec });
 }
