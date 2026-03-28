@@ -26,19 +26,58 @@ export class ArenaClient {
 
   // ─── Read (via Indexer) ─────────────────────────────────────────────────────
 
-  /** List tasks from the indexer with optional filters */
+  /** List tasks (Indexer first, fallback to chain) */
   async getTasks(filters: TaskFilters = {}): Promise<{ total: number; tasks: Task[] }> {
-    const params = new URLSearchParams();
-    if (filters.status)    params.set("status",     filters.status);
-    if (filters.poster)    params.set("poster",     filters.poster);
-    if (filters.limit)     params.set("limit",      String(filters.limit));
-    if (filters.offset)    params.set("offset",     String(filters.offset));
-    if (filters.sort)      params.set("sort",       filters.sort);
-    if (filters.minReward) params.set("min_reward", filters.minReward);
+    // Try indexer first
+    try {
+      const params = new URLSearchParams();
+      if (filters.status)    params.set("status",     filters.status);
+      if (filters.poster)    params.set("poster",     filters.poster);
+      if (filters.limit)     params.set("limit",      String(filters.limit));
+      if (filters.offset)    params.set("offset",     String(filters.offset));
+      if (filters.sort)      params.set("sort",       filters.sort);
+      if (filters.minReward) params.set("min_reward", filters.minReward);
 
-    const res = await fetch(`${this.indexerUrl}/tasks?${params}`, this.fetchOpts);
-    if (!res.ok) throw new Error(`getTasks failed: ${res.statusText}`);
-    return res.json();
+      const res = await fetch(`${this.indexerUrl}/tasks?${params}`, this.fetchOpts);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.total > 0 || data.tasks?.length > 0) return data;
+      }
+    } catch { /* indexer down — fallback */ }
+
+    // Fallback: read tasks directly from contract
+    try {
+      const taskCount = Number(await this.contract.taskCount());
+      if (taskCount === 0) return { total: 0, tasks: [] };
+
+      const STATUS_MAP: Record<number, string> = { 0: "open", 1: "in_progress", 2: "completed", 3: "refunded" };
+      const tasks: Task[] = [];
+      const limit = filters.limit || 20;
+
+      for (let i = taskCount - 1; i >= 0 && tasks.length < limit; i--) {
+        const t = await this.contract.tasks(i);
+        const status = STATUS_MAP[Number(t.status)] || "open";
+        if (filters.status && filters.status !== "all" && status !== filters.status) continue;
+        tasks.push({
+          id: Number(t.id),
+          poster: t.poster,
+          description: t.description,
+          evaluationCID: t.evaluationCID || "",
+          reward: ethers.formatEther(t.reward),
+          rewardWei: t.reward.toString(),
+          deadline: Number(t.deadline),
+          deadlineISO: new Date(Number(t.deadline) * 1000).toISOString(),
+          status: status as Task["status"],
+          assignedAgent: t.assignedAgent !== ethers.ZeroAddress ? t.assignedAgent : null,
+          judgeDeadline: t.judgeDeadline ? Number(t.judgeDeadline) : null,
+          createdAt: Number(t.assignedAt) || 0,
+          txHash: null,
+        });
+      }
+      return { total: tasks.length, tasks };
+    } catch {
+      return { total: 0, tasks: [] };
+    }
   }
 
   /** Get detailed info for a single task */
@@ -48,22 +87,34 @@ export class ArenaClient {
     return res.json();
   }
 
-  /** Get tasks assigned to this agent */
+  /** Get tasks assigned to this agent (Indexer first, fallback to chain) */
   async getMyAssignedTasks(): Promise<Task[]> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=assigned`, this.fetchOpts);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.tasks;
+    try {
+      const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=assigned`, this.fetchOpts);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tasks?.length > 0) return data.tasks;
+      }
+    } catch { /* fallback */ }
+    // Fallback: scan chain for tasks assigned to us
+    const { tasks } = await this.getTasks({ status: "in_progress", limit: 50 });
+    return tasks.filter(t => t.assignedAgent?.toLowerCase() === address.toLowerCase());
   }
 
-  /** Get all tasks this agent has applied for */
+  /** Get all tasks this agent has applied for (Indexer first, fallback empty) */
   async getMyApplications(): Promise<Task[]> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=applied`, this.fetchOpts);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.tasks;
+    try {
+      const res = await fetch(`${this.indexerUrl}/agents/${address}/tasks?status=applied`, this.fetchOpts);
+      if (res.ok) {
+        const data = await res.json();
+        return data.tasks || [];
+      }
+    } catch { /* indexer down */ }
+    // No chain fallback for applications (would need to scan all events)
+    // Return empty — agent will re-apply on next tick
+    return [];
   }
 
   /** Get my agent profile and reputation (Indexer first, fallback to chain) */
