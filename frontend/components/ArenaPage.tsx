@@ -8,7 +8,7 @@ import { getContract, formatOKB, shortenAddress, STATUS_LABELS, STATUS_LABELS_ZH
 import { useLangStore } from "@/store/lang";
 import {
   Plus, Trophy, Clock, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, Zap, Users, RefreshCw
+  ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal
 } from "lucide-react";
 
 interface Task {
@@ -51,12 +51,6 @@ export function ArenaPage() {
   const [deadlineHours, setDeadlineHours] = useState("24");
   const [posting, setPosting] = useState(false);
 
-  // Register agent form
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [agentId, setAgentId] = useState("");
-  const [registering, setRegistering] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
-
   const [txHash, setTxHash] = useState<string | null>(null);
 
   // My Agent reputation state
@@ -67,6 +61,7 @@ export function ArenaPage() {
     winRate: number;
   } | null>(null);
   const [myAgentId, setMyAgentId] = useState<string>("");
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const getReadContract = useCallback(() => {
     if (!provider) return null;
@@ -199,26 +194,6 @@ export function ArenaPage() {
     }
   };
 
-  const registerAgent = async () => {
-    const contract = getWriteContract();
-    if (!contract || !agentId) return;
-    setRegistering(true);
-    try {
-      // ownerAddr = address(0) → agent wallet == master wallet (MVP default)
-      // In v2, pass masterWallet to separate agent from owner
-      const tx = await contract.registerAgent(agentId, "ipfs://metadata", ethers.ZeroAddress);
-      setTxHash(tx.hash);
-      await tx.wait();
-      setShowRegisterForm(false);
-      setIsRegistered(true);
-      await loadData();
-    } catch (e) {
-      console.error("Register failed", e);
-    } finally {
-      setRegistering(false);
-    }
-  };
-
   const applyForTask = async (taskId: number) => {
     const contract = getWriteContract();
     if (!contract) return;
@@ -335,23 +310,26 @@ export function ArenaPage() {
             </div>
 
             {!isRegistered ? (
-              /* 未注册 */
-              <div className="flex items-center justify-between py-4">
-                <div>
-                  <p className="text-white/50 text-sm">
-                    {lang === "en" ? "Your Agent is not registered yet." : "你的 Agent 尚未注册"}
-                  </p>
-                  <p className="text-white/30 text-xs mt-1">
-                    {lang === "en" ? "Register to start competing for tasks" : "注册后即可参与任务竞争，积累链上信誉"}
-                  </p>
+              /* 未注册 - 提示使用 CLI */
+              <div className="border border-dashed border-white/20 p-6 text-center">
+                <Terminal className="w-8 h-8 text-white/30 mx-auto mb-3" />
+                <p className="text-white/70 text-sm mb-2">
+                  {lang === "en" ? "Agent registration is now CLI-only" : "Agent 注册已通过 CLI 完成"}
+                </p>
+                <p className="text-white/40 text-xs mb-4 max-w-md mx-auto">
+                  {lang === "en" 
+                    ? "Use arena join to create an independent Agent Wallet with Owner binding. Web registration cannot separate Wallet from Owner."
+                    : "使用 arena join 创建独立的 Agent Wallet 并绑定 Owner。Web 注册无法实现 Wallet 与 Owner 分离。"}
+                </p>
+                <div className="bg-black/40 border border-white/10 p-3 font-mono text-xs text-left max-w-lg mx-auto">
+                  <p className="text-white/30"># 一键注册 Agent</p>
+                  <p className="text-white/70">npx @daviriansu/arena-cli join \</p>
+                  <p className="text-white/70">  --agent-id my-agent \</p>
+                  <p className="text-white/70">  --owner {address?.slice(0, 10)}...</p>
                 </div>
-                <button
-                  onClick={() => setShowRegisterForm(true)}
-                  className="px-5 py-2 text-sm border transition font-medium"
-                  style={{ borderColor: CYAN, color: CYAN }}
-                >
-                  {lang === "en" ? "Register Agent" : "凝聚元神"}
-                </button>
+                <p className="text-white/30 text-xs mt-4">
+                  {lang === "en" ? "After registration, your Agent info will appear here" : "注册完成后，Agent 信息将显示在此处"}
+                </p>
               </div>
             ) : (
               /* 已注册 — 信誉仪表盘 */
@@ -482,13 +460,15 @@ export function ArenaPage() {
               {lang === "en" ? "Post Task" : "发布任务"}
             </button>
             {!isRegistered && (
-              <button
-                onClick={() => setShowRegisterForm(v => !v)}
+              <a
+                href="https://github.com/DaviRain-Su/agent-arena/blob/main/DEMO_GUIDE.md"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition"
               >
-                <Users className="w-4 h-4" />
-                {lang === "en" ? "Register as Agent" : "注册为 Agent"}
-              </button>
+                <Terminal className="w-4 h-4" />
+                {lang === "en" ? "How to Register Agent" : "如何注册 Agent"}
+              </a>
             )}
           </div>
         )}
@@ -580,34 +560,6 @@ export function ArenaPage() {
                 onClick={() => setShowPostForm(false)}
                 className="px-4 py-2 text-sm text-white/40 hover:text-white transition"
               >
-                {lang === "en" ? "Cancel" : "取消"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Register Agent Form */}
-        {showRegisterForm && (
-          <div className="border border-white/20 p-6 space-y-4 bg-white/5">
-            <h3 className="text-sm font-medium text-white">
-              {lang === "en" ? "Register as Agent Node" : "注册为 Agent 节点"}
-            </h3>
-            <input
-              type="text"
-              value={agentId}
-              onChange={e => setAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-              placeholder={lang === "en" ? "Agent ID, e.g. openclaw-001" : "Agent ID，如 openclaw-001"}
-              className="w-full bg-black/40 border border-white/20 px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/50"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={registerAgent}
-                disabled={registering || !agentId}
-                className="px-6 py-2 text-sm font-medium border border-white/30 text-white hover:border-white/60 transition"
-              >
-                {registering ? (lang === "en" ? "Registering..." : "注册中...") : (lang === "en" ? "Register" : "注册")}
-              </button>
-              <button onClick={() => setShowRegisterForm(false)} className="px-4 py-2 text-sm text-white/40 hover:text-white transition">
                 {lang === "en" ? "Cancel" : "取消"}
               </button>
             </div>
