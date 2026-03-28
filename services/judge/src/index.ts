@@ -155,19 +155,18 @@ class JudgeService {
   }
 
   private async loadInProgressTasks() {
-    console.log("Loading historical InProgress tasks...");
+    console.log("Loading InProgress tasks from contract...");
     try {
-      const currentBlock = await withRetry(() => this.provider.getBlockNumber(), "getBlockNumber");
-      // X-Layer RPC limits to 100 blocks per query
-      const fromBlock = Math.max(0, currentBlock - 99);
-      const events = await withRetry(
-        () => this.contract.queryFilter(this.contract.filters.TaskAssigned(), fromBlock, currentBlock),
-        "queryFilter(TaskAssigned-backfill)"
-      );
-      for (const event of events) {
-        const taskId = Number((event as any).args?.taskId);
-        if (!this.judgedTasks.has(taskId)) {
-          this.inProgressTasks.add(taskId);
+      const taskCount = Number(await withRetry(() => this.contract.taskCount(), "taskCount"));
+      for (let i = 0; i < taskCount; i++) {
+        try {
+          const task = await withRetry(() => this.contract.tasks(i), `tasks(${i})`);
+          // status 1 = InProgress
+          if (Number(task.status) === 1 && !this.judgedTasks.has(i)) {
+            this.inProgressTasks.add(i);
+          }
+        } catch {
+          // skip individual task read failures
         }
       }
       console.log(`Monitoring ${this.inProgressTasks.size} InProgress task(s) for judge deadline\n`);
@@ -209,52 +208,35 @@ class JudgeService {
     const currentBlock = await withRetry(() => this.provider.getBlockNumber(), "getBlockNumber");
     if (currentBlock <= this.lastBlock) return;
 
-    // X-Layer RPC limits to 100 blocks per query
-    const fromBlock = Math.max(this.lastBlock + 1, currentBlock - 99);
-
-    // Query TaskAssigned events to track new InProgress tasks
-    const assignedEvents = await withRetry(
-      () => this.contract.queryFilter(this.contract.filters.TaskAssigned(), fromBlock, currentBlock),
-      "queryFilter(TaskAssigned)"
-    );
-    for (const event of assignedEvents) {
-      const taskId = Number((event as any).args?.taskId);
-      this.inProgressTasks.add(taskId);
-    }
-
     // Check for tasks whose judge deadline has expired
     await this.checkForceRefundable();
 
-    // Query ResultSubmitted events
-    const events = await withRetry(
-      () => this.contract.queryFilter(this.contract.filters.ResultSubmitted(), fromBlock, currentBlock),
-      "queryFilter(ResultSubmitted)"
-    );
+    // Instead of queryFilter (which fails on some RPCs like Alchemy),
+    // scan all tasks by reading contract state directly
+    const taskCount = Number(await withRetry(() => this.contract.taskCount(), "taskCount"));
 
-    for (const event of events) {
-      const evt = event as any;
-      const taskId = Number(evt.args?.taskId);
-      const agent = evt.args?.agent as string;
-      const resultHash = evt.args?.resultHash as string;
-      
-      // Skip already judged tasks
-      if (this.judgedTasks.has(taskId)) {
-        console.log(`⏭️  Task #${taskId} already judged, skipping`);
+    for (let taskId = 0; taskId < taskCount; taskId++) {
+      if (this.judgedTasks.has(taskId)) continue;
+
+      const task = await withRetry(() => this.contract.tasks(taskId), `tasks(${taskId})`) as Task;
+      const status = Number(task.status);
+
+      // Track InProgress tasks for force-refund monitoring
+      if (status === 1) {
+        this.inProgressTasks.add(taskId);
+      }
+
+      // Only process tasks that have a result submitted (InProgress + resultHash non-empty)
+      if (status !== 1 || !task.resultHash) {
+        if (status >= 2) this.judgedTasks.add(taskId); // completed/refunded — skip permanently
         continue;
       }
-      
+
+      const agent = task.assignedAgent;
+      const resultHash = task.resultHash;
+
       console.log(`📥 Task #${taskId} submitted by ${agent}`);
       console.log(`   Result CID: ${resultHash}`);
-
-      // Fetch task details
-      const task = await withRetry(() => this.contract.tasks(taskId), `tasks(${taskId})`) as Task;
-      
-      // Check if already judged (on-chain status)
-      if (task.status !== 1) { // Not InProgress
-        console.log(`   Skipping: status = ${task.status} (not InProgress)`);
-        this.judgedTasks.add(taskId);
-        continue;
-      }
 
       // Fetch actual submission content
       const submission = await this.fetchSubmission(resultHash, taskId);
@@ -652,10 +634,12 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, retries = 4): P
       return await fn();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isTransient = /socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|network|timeout|fetch failed|SERVER_ERROR|NETWORK_ERROR/i.test(msg);
-      if (!isTransient || i === retries - 1) throw e;
-      const delay = 3000 * (i + 1); // 3s, 6s, 9s
-      console.warn(`   ⚠️  ${label} failed (attempt ${i + 1}/${retries}): ${msg.slice(0, 60)}, retry in ${delay / 1000}s`);
+      // Only retry transient network errors, not 400/403/etc
+      const isTransient = /socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|timeout|fetch failed/i.test(msg);
+      const isPermanent = /400 Bad Request|403 Forbidden|404 Not Found|401 Unauthorized/i.test(msg);
+      if (isPermanent || !isTransient || i === retries - 1) throw e;
+      const delay = 3000 * (i + 1);
+      console.warn(`   ⚠️  ${label} failed (attempt ${i + 1}/${retries}): ${msg.slice(0, 80)}, retry in ${delay / 1000}s`);
       await sleep(delay);
     }
   }
