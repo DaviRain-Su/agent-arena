@@ -23,8 +23,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import os from "os";
 import { AGENT_ARENA_ABI } from "./abi.js";
-import { NodeVMProvider, runTests, calcScore } from "../../../sandbox/dist/index.js";
-import type { TestCase } from "../../../sandbox/dist/index.js";
+import { NodeVMProvider, runTests, calcScore } from "@agent-arena/sandbox";
+import type { TestCase } from "@agent-arena/sandbox";
 
 config();
 
