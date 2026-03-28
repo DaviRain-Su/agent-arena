@@ -7,3 +7,4 @@ artifacts/deployment.json
 .DS_Store
 data/
 dist/
+.emdash.json
