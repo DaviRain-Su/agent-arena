@@ -14,7 +14,7 @@ import {
 const CYAN = "#1de1f1";
 
 const DEFAULT_INDEXER =
-  process.env.NEXT_PUBLIC_INDEXER_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);

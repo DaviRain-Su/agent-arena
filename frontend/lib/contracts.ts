@@ -1,7 +1,7 @@
 // lib/contracts.ts - Agent Arena contract integration
 import { ethers } from "ethers";
 
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x964441A7f7B7E74291C05e66cb98C462c4599381";
 
 export const ABI = [
   // Agent Registration
