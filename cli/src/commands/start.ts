@@ -158,34 +158,52 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
   await loop.start();
 }
 
-async function solveTask(task: Task, log: (msg: string) => void): Promise<string> {
-  const desc = task.description || "";
-  const prompt = desc + "\n\nReturn ONLY the function code. No explanation, no markdown fences, no imports.";
-
-  // Use local Claude Code CLI (claude -p) — runs on this machine, no API key needed
+async function runLocalTool(tool: string, args: string[], prompt: string, log: (msg: string) => void): Promise<string | null> {
   try {
     const { spawnSync } = await import("child_process");
-    const result = spawnSync("claude", ["-p", prompt], {
+    const result = spawnSync(tool, args, {
+      input: tool === "droid" ? undefined : undefined, // both use args
       encoding: "utf8",
-      timeout: 3 * 60_000, // 3 min max
+      timeout: 3 * 60_000,
       env: { ...process.env, NO_COLOR: "1" },
     });
     if (result.status === 0 && result.stdout?.trim().length > 10) {
       const code = result.stdout.trim()
-        .replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
-      log("  Solved via Claude Code CLI");
+        .replace(/^```\w*\n?/gm, "").replace(/\n?```$/gm, "").trim();
       return code;
     }
     if (result.error || result.status !== 0) {
-      log(`  Claude Code CLI failed: ${(result.stderr || result.error?.message || "").slice(0, 80)}`);
+      log(`  ${tool} failed: ${(result.stderr || result.error?.message || "unknown").slice(0, 80)}`);
     }
   } catch (e: unknown) {
-    log(`  Claude Code CLI not available: ${e instanceof Error ? e.message : String(e)}`);
+    log(`  ${tool} not available: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  return null;
+}
+
+async function solveTask(task: Task, log: (msg: string) => void): Promise<string> {
+  const desc = task.description || "";
+  const prompt = desc + "\n\nReturn ONLY the function code. No explanation, no markdown fences, no imports.";
+
+  // Try each local AI tool in order: pi, droid, claude
+  const tools: Array<{ name: string; cmd: string; args: string[] }> = [
+    { name: "pi", cmd: "pi", args: ["-p", prompt] },
+    { name: "Droid", cmd: "droid", args: ["exec", "--skip-permissions-unsafe", prompt] },
+    { name: "Claude Code", cmd: "claude", args: ["-p", prompt] },
+  ];
+
+  for (const tool of tools) {
+    log(`  Trying ${tool.name}...`);
+    const result = await runLocalTool(tool.cmd, tool.args, prompt, log);
+    if (result) {
+      log(chalk.green(`  Solved via ${tool.name}`));
+      return result;
+    }
   }
 
   // Fallback: built-in solvers for common tasks
+  log("  Using built-in solver");
   if (desc.includes("fibonacci")) {
-    log("  Using built-in fibonacci solver");
     return `function fibonacci(n) {
   if (n <= 0) return 0;
   if (n === 1) return 1;
@@ -195,7 +213,6 @@ async function solveTask(task: Task, log: (msg: string) => void): Promise<string
 }`;
   }
   if (/deepMerge|deep.?merge/i.test(desc)) {
-    log("  Using built-in deepMerge solver");
     return `function deepMerge(target, source) {
   if (target == null) target = {};
   if (source == null) source = {};
