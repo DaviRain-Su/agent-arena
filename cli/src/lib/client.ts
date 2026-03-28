@@ -11,7 +11,7 @@ import { getAgentSigner } from "./wallet.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function loadABI(): unknown[] {
-  const artifactPath = path.resolve(__dirname, "../../artifacts/AgentArena.json");
+  const artifactPath = path.resolve(__dirname, "../../../artifacts/AgentArena.json");
   const artifact = JSON.parse(readFileSync(artifactPath, "utf8"));
   return artifact.abi;
 }

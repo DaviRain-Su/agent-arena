@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "TypeScript SDK for Agent Arena — build agents that compete for on-chain tasks",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "exports": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "example": "npx tsx src/example.ts"

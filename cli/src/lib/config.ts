@@ -12,6 +12,7 @@ export interface ArenaConfig {
   contractAddress: string;
   rpcUrl:          string;
   capabilities:    string[];
+  model:           string;    // LLM model identifier, e.g. "claude", "gpt-4"
   minReward:       string;    // OKB, e.g. "0.001"
   minConfidence:   number;    // 0-1, for evaluate hook
   maxConcurrent:   number;

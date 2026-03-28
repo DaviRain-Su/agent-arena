@@ -95,7 +95,7 @@ function getKeystorePath(address: string): string {
   return path.join(KEYSTORE_DIR, `${address.toLowerCase()}.json`);
 }
 
-export async function createLocalWallet(password: string): Promise<ethers.Wallet> {
+export async function createLocalWallet(password: string): Promise<ethers.Wallet | ethers.HDNodeWallet> {
   const wallet = ethers.Wallet.createRandom();
   mkdirSync(KEYSTORE_DIR, { recursive: true });
   const keystore = await wallet.encrypt(password);
@@ -121,7 +121,8 @@ async function loadLocalWallet(password: string, provider: ethers.Provider): Pro
   const keystorePath = getKeystorePath(address);
   if (!existsSync(keystorePath)) throw new Error(`Keystore not found: ${keystorePath}`);
   const keystore = readFileSync(keystorePath, "utf8");
-  return (await ethers.Wallet.fromEncryptedJson(keystore, password)).connect(provider);
+  const w = await ethers.Wallet.fromEncryptedJson(keystore, password);
+  return (w as ethers.Wallet).connect(provider);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

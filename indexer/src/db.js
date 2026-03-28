@@ -1,18 +1,17 @@
-// indexer/src/db.js — SQLite schema and queries
+// indexer/src/db.js — SQLite schema and queries (uses built-in node:sqlite)
 
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { mkdirSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = process.env.DB_PATH || path.resolve(__dirname, "../data/arena.db");
 
-// Ensure data dir exists
-import { mkdirSync } from "fs";
 mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
+const db = new DatabaseSync(DB_PATH);
+db.exec("PRAGMA journal_mode = WAL");
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -74,20 +73,20 @@ export function getLastBlock() {
 }
 
 export function setLastBlock(blockNumber) {
-  db.prepare("INSERT OR REPLACE INTO sync_state (key, value) VALUES ('last_block', ?)").run(String(blockNumber));
+  db.prepare("INSERT OR REPLACE INTO sync_state (key, value) VALUES (:key, :value)")
+    .run({ ':key': 'last_block', ':value': String(blockNumber) });
 }
 
 // ─── Task Queries ─────────────────────────────────────────────────────────────
 
 const STATUS_MAP = { 0: "open", 1: "in_progress", 2: "completed", 3: "refunded", 4: "disputed" };
-const STATUS_REV = Object.fromEntries(Object.entries(STATUS_MAP).map(([k, v]) => [v, k]));
 
 export function upsertTask(t) {
   db.prepare(`
     INSERT INTO tasks (id, poster, description, evaluation_cid, reward_wei, deadline, assigned_at,
       judge_deadline, status, assigned_agent, result_hash, score, winner, reason_uri, created_at, post_tx, judge_tx)
-    VALUES (@id, @poster, @description, @evaluationCid, @rewardWei, @deadline, @assignedAt,
-      @judgeDeadline, @status, @assignedAgent, @resultHash, @score, @winner, @reasonUri, @createdAt, @postTx, @judgeTx)
+    VALUES (:id, :poster, :description, :evaluationCid, :rewardWei, :deadline, :assignedAt,
+      :judgeDeadline, :status, :assignedAgent, :resultHash, :score, :winner, :reasonUri, :createdAt, :postTx, :judgeTx)
     ON CONFLICT(id) DO UPDATE SET
       evaluation_cid  = excluded.evaluation_cid,
       assigned_at     = excluded.assigned_at,
@@ -99,16 +98,34 @@ export function upsertTask(t) {
       winner          = excluded.winner,
       reason_uri      = excluded.reason_uri,
       judge_tx        = excluded.judge_tx
-  `).run(t);
+  `).run({
+    ':id': t.id,
+    ':poster': t.poster,
+    ':description': t.description,
+    ':evaluationCid': t.evaluationCid,
+    ':rewardWei': t.rewardWei,
+    ':deadline': t.deadline,
+    ':assignedAt': t.assignedAt,
+    ':judgeDeadline': t.judgeDeadline,
+    ':status': t.status,
+    ':assignedAgent': t.assignedAgent,
+    ':resultHash': t.resultHash,
+    ':score': t.score,
+    ':winner': t.winner,
+    ':reasonUri': t.reasonUri,
+    ':createdAt': t.createdAt,
+    ':postTx': t.postTx,
+    ':judgeTx': t.judgeTx,
+  });
 }
 
 export function setResultPreview(taskId, preview) {
-  db.prepare("UPDATE tasks SET result_preview = ? WHERE id = ?").run(preview, taskId);
+  db.prepare("UPDATE tasks SET result_preview = :preview WHERE id = :id")
+    .run({ ':preview': preview, ':id': taskId });
 }
 
 function formatTask(row) {
   if (!row) return null;
-  const { formatEther } = await import("ethers").then(m => m);
   return {
     id: row.id,
     poster: row.poster,
@@ -137,32 +154,32 @@ function formatTaskDetail(row) {
     winner: row.winner || null,
     reasonURI: row.reason_uri || null,
     judgeTxHash: row.judge_tx || null,
-    applicantCount: 0, // filled by caller
+    applicantCount: 0,
   };
 }
 
 export function getTaskById(id) {
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id);
+  const row = db.prepare("SELECT * FROM tasks WHERE id = :id").get({ ':id': id });
   return formatTaskDetail(row);
 }
 
 export function getTasks({ status = "open", poster, limit = 20, offset = 0, sort = "newest", minReward } = {}) {
   let where = [];
-  let params = [];
+  let params = {};
+  let paramIdx = 0;
 
   if (status !== "all") {
-    where.push("status = ?");
-    params.push(status.replace("-", "_"));
+    where.push("status = :status");
+    params[':status'] = status.replace("-", "_");
   }
   if (poster) {
-    where.push("LOWER(poster) = LOWER(?)");
-    params.push(poster);
+    where.push("LOWER(poster) = LOWER(:poster)");
+    params[':poster'] = poster;
   }
   if (minReward) {
-    // minReward in OKB → convert to wei comparison
     const minWei = BigInt(Math.round(parseFloat(minReward) * 1e18)).toString();
-    where.push("CAST(reward_wei AS INTEGER) >= ?");
-    params.push(minWei);
+    where.push("CAST(reward_wei AS INTEGER) >= :minWei");
+    params[':minWei'] = minWei;
   }
 
   const orderMap = {
@@ -172,23 +189,17 @@ export function getTasks({ status = "open", poster, limit = 20, offset = 0, sort
     deadline_asc: "deadline ASC",
   };
 
-  const sql = `
-    SELECT * FROM tasks
-    ${where.length ? "WHERE " + where.join(" AND ") : ""}
-    ORDER BY ${orderMap[sort] || "created_at DESC"}
-    LIMIT ? OFFSET ?
-  `;
+  const whereClause = where.length ? "WHERE " + where.join(" AND ") : "";
+  const orderClause = `ORDER BY ${orderMap[sort] || "created_at DESC"}`;
 
-  const countSql = `
-    SELECT COUNT(*) as cnt FROM tasks
-    ${where.length ? "WHERE " + where.join(" AND ") : ""}
-  `;
+  const rows = db.prepare(`SELECT * FROM tasks ${whereClause} ${orderClause} LIMIT :limit OFFSET :offset`)
+    .all({ ...params, ':limit': limit, ':offset': offset });
 
-  const rows = db.prepare(sql).all([...params, limit, offset]);
-  const { cnt } = db.prepare(countSql).get(params);
+  const countRow = db.prepare(`SELECT COUNT(*) as cnt FROM tasks ${whereClause}`)
+    .get(params);
 
   return {
-    total: cnt,
+    total: countRow.cnt,
     tasks: rows.map(formatTask),
   };
 }
@@ -198,15 +209,14 @@ export function getApplicants(taskId) {
     SELECT a.*, ag.agent_id, ag.tasks_completed, ag.total_score, ag.tasks_attempted
     FROM applicants a
     LEFT JOIN agents ag ON LOWER(a.agent) = LOWER(ag.wallet)
-    WHERE a.task_id = ?
+    WHERE a.task_id = :taskId
     ORDER BY a.applied_at ASC
-  `).all(taskId);
+  `).all({ ':taskId': taskId });
 }
 
 export function addApplicant(taskId, agent, timestamp) {
-  db.prepare(`
-    INSERT OR IGNORE INTO applicants (task_id, agent, applied_at) VALUES (?, ?, ?)
-  `).run(taskId, agent, timestamp);
+  db.prepare(`INSERT OR IGNORE INTO applicants (task_id, agent, applied_at) VALUES (:taskId, :agent, :ts)`)
+    .run({ ':taskId': taskId, ':agent': agent, ':ts': timestamp });
 }
 
 // ─── Agent Queries ────────────────────────────────────────────────────────────
@@ -214,12 +224,20 @@ export function addApplicant(taskId, agent, timestamp) {
 export function upsertAgent(a) {
   db.prepare(`
     INSERT INTO agents (wallet, agent_id, metadata, tasks_completed, tasks_attempted, total_score, registered_at)
-    VALUES (@wallet, @agentId, @metadata, @tasksCompleted, @tasksAttempted, @totalScore, @registeredAt)
+    VALUES (:wallet, :agentId, :metadata, :tasksCompleted, :tasksAttempted, :totalScore, :registeredAt)
     ON CONFLICT(wallet) DO UPDATE SET
       tasks_completed = excluded.tasks_completed,
       tasks_attempted = excluded.tasks_attempted,
       total_score     = excluded.total_score
-  `).run(a);
+  `).run({
+    ':wallet': a.wallet,
+    ':agentId': a.agentId,
+    ':metadata': a.metadata,
+    ':tasksCompleted': a.tasksCompleted,
+    ':tasksAttempted': a.tasksAttempted,
+    ':totalScore': a.totalScore,
+    ':registeredAt': a.registeredAt,
+  });
 }
 
 function formatAgent(row) {
@@ -238,7 +256,7 @@ function formatAgent(row) {
 }
 
 export function getAgent(wallet) {
-  const row = db.prepare("SELECT * FROM agents WHERE LOWER(wallet) = LOWER(?)").get(wallet);
+  const row = db.prepare("SELECT * FROM agents WHERE LOWER(wallet) = LOWER(:wallet)").get({ ':wallet': wallet });
   return formatAgent(row);
 }
 
@@ -250,21 +268,21 @@ export function getLeaderboard({ limit = 10, sort = "avg_score" } = {}) {
     newest: "registered_at DESC",
   };
   const rows = db.prepare(
-    `SELECT * FROM agents ORDER BY ${orderMap[sort] || orderMap.avg_score} LIMIT ?`
-  ).all(limit);
+    `SELECT * FROM agents ORDER BY ${orderMap[sort] || orderMap.avg_score} LIMIT :limit`
+  ).all({ ':limit': limit });
   return rows.map(formatAgent);
 }
 
 export function getAgentTasks(wallet, status = "assigned") {
-  const statusFilter = {
-    assigned: "status = 'in_progress' AND LOWER(assigned_agent) = LOWER(?)",
-    completed: "status = 'completed' AND LOWER(winner) = LOWER(?)",
-    applied: "id IN (SELECT task_id FROM applicants WHERE LOWER(agent) = LOWER(?))",
-    all: "id IN (SELECT task_id FROM applicants WHERE LOWER(agent) = LOWER(?)) OR LOWER(assigned_agent) = LOWER(?) OR LOWER(winner) = LOWER(?)",
+  const filters = {
+    assigned:  "status = 'in_progress' AND LOWER(assigned_agent) = LOWER(:wallet)",
+    completed: "status = 'completed' AND LOWER(winner) = LOWER(:wallet)",
+    applied:   "id IN (SELECT task_id FROM applicants WHERE LOWER(agent) = LOWER(:wallet))",
+    all:       "id IN (SELECT task_id FROM applicants WHERE LOWER(agent) = LOWER(:wallet)) OR LOWER(assigned_agent) = LOWER(:wallet) OR LOWER(winner) = LOWER(:wallet)",
   };
-  const filter = statusFilter[status] || statusFilter.assigned;
-  const params = status === "all" ? [wallet, wallet, wallet] : [wallet];
-  const rows = db.prepare(`SELECT * FROM tasks WHERE ${filter} ORDER BY created_at DESC`).all(params);
+  const filter = filters[status] || filters.assigned;
+  const rows = db.prepare(`SELECT * FROM tasks WHERE ${filter} ORDER BY created_at DESC`)
+    .all({ ':wallet': wallet });
   return rows.map(formatTask);
 }
 
@@ -278,12 +296,12 @@ export function getStats() {
       AVG(CASE WHEN score IS NOT NULL THEN score ELSE NULL END) as avg_score
     FROM tasks
   `).get();
-  const agentCount = db.prepare("SELECT COUNT(*) as cnt FROM agents").get().cnt;
+  const agentRow = db.prepare("SELECT COUNT(*) as cnt FROM agents").get();
   return {
     totalTasks: row.total,
     openTasks: row.open,
     completedTasks: row.completed,
-    totalAgents: agentCount,
+    totalAgents: agentRow.cnt,
     totalRewardPaid: String(Number(BigInt(Math.round(row.total_paid_wei || 0))) / 1e18),
     avgScore: Math.round(row.avg_score || 0),
   };
