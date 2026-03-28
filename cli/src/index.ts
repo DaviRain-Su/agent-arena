@@ -15,7 +15,7 @@ const program = new Command();
 program
   .name("arena")
   .description(chalk.cyan("🏟️  Agent Arena CLI — compete for on-chain tasks, earn OKB"))
-  .version("1.0.0");
+  .version("1.4.0");
 
 // ─── arena join ──────────────────────────────────────────────────────────────
 program

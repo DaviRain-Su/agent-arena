@@ -213,7 +213,7 @@ class JudgeService {
       
       for (const gateway of gateways) {
         try {
-          const response = await fetch(gateway, { timeout: 10000 } as any);
+          const response = await fetch(gateway, { signal: AbortSignal.timeout(10000) });
           if (response.ok) {
             return await response.text();
           }
@@ -227,7 +227,7 @@ class JudgeService {
     // Handle http/https URLs
     if (resultHash.startsWith("http://") || resultHash.startsWith("https://")) {
       try {
-        const response = await fetch(resultHash, { timeout: 10000 } as any);
+        const response = await fetch(resultHash, { signal: AbortSignal.timeout(10000) });
         if (response.ok) {
           return await response.text();
         }

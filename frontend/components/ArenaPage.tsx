@@ -207,6 +207,36 @@ export function ArenaPage() {
     }
   };
 
+  const assignTask = async (taskId: number, agentAddress: string) => {
+    const contract = getWriteContract();
+    if (!contract) return;
+    try {
+      const tx = await contract.assignTask(taskId, agentAddress);
+      setTxHash(tx.hash);
+      await tx.wait();
+      await loadData();
+    } catch (e) {
+      console.error("Assign failed", e);
+    }
+  };
+
+  const [submitResult, setSubmitResultState] = useState<{ taskId: number; result: string } | null>(null);
+
+  const doSubmitResult = async (taskId: number, result: string) => {
+    const contract = getWriteContract();
+    if (!contract || !result) return;
+    try {
+      const resultHash = ethers.keccak256(ethers.toUtf8Bytes(result));
+      const tx = await contract.submitResult(taskId, resultHash);
+      setTxHash(tx.hash);
+      await tx.wait();
+      setSubmitResultState(null);
+      await loadData();
+    } catch (e) {
+      console.error("Submit failed", e);
+    }
+  };
+
   const wrongNetwork = isConnected && chainId !== 1952; // X-Layer Testnet
 
   // 修仙境界 — 信誉等级
@@ -654,24 +684,37 @@ export function ArenaPage() {
                             <p className="text-xs text-white/40 mb-2">
                               {lang === "en" ? "Applicants:" : "申请者："}
                             </p>
-                            <div className="space-y-1">
-                              {task.applicants.map(a => (
-                                <div key={a} className="flex items-center gap-2 text-xs font-mono text-white/50">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                                  {a}
-                                  {a === task.assignedAgent && (
-                                    <span className="px-1.5 py-0.5 border text-[10px]"
-                                      style={{ borderColor: `${CYAN}60`, color: CYAN }}>
-                                      ASSIGNED
-                                    </span>
-                                  )}
-                                  {a === task.winner && (
-                                    <span className="flex items-center gap-1 text-[10px]" style={{ color: CYAN }}>
-                                      <Trophy className="w-3 h-3" /> WINNER
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
+                            <div className="space-y-1.5">
+                              {task.applicants.map(a => {
+                                const isPoster = task.poster.toLowerCase() === address?.toLowerCase();
+                                const canAssign = isPoster && task.status === 0 && !task.assignedAgent;
+                                return (
+                                  <div key={a} className="flex items-center gap-2 text-xs font-mono text-white/50">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                                    {a}
+                                    {a === task.assignedAgent && (
+                                      <span className="px-1.5 py-0.5 border text-[10px]"
+                                        style={{ borderColor: `${CYAN}60`, color: CYAN }}>
+                                        ASSIGNED
+                                      </span>
+                                    )}
+                                    {a === task.winner && (
+                                      <span className="flex items-center gap-1 text-[10px]" style={{ color: CYAN }}>
+                                        <Trophy className="w-3 h-3" /> WINNER
+                                      </span>
+                                    )}
+                                    {canAssign && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); assignTask(task.id, a); }}
+                                        className="ml-auto px-2 py-0.5 border text-[10px] transition hover:opacity-80"
+                                        style={{ borderColor: `${CYAN}60`, color: CYAN }}
+                                      >
+                                        {lang === "en" ? "Assign" : "指派"}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -682,6 +725,51 @@ export function ArenaPage() {
                               {lang === "en" ? "Result:" : "提交结果："}
                             </p>
                             <code className="text-xs text-white/50 font-mono">{task.resultHash}</code>
+                          </div>
+                        )}
+
+                        {/* Submit Result — assigned agent only */}
+                        {task.status === 1 &&
+                          task.assignedAgent.toLowerCase() === address?.toLowerCase() &&
+                          !task.resultHash && (
+                          <div className="pt-2 border-t border-white/10">
+                            {submitResult?.taskId === task.id ? (
+                              <div className="space-y-2">
+                                <textarea
+                                  value={submitResult.result}
+                                  onChange={e => setSubmitResultState({ taskId: task.id, result: e.target.value })}
+                                  placeholder={lang === "en" ? "Paste your solution here..." : "在此粘贴你的解答..."}
+                                  rows={4}
+                                  className="w-full bg-black/40 border border-white/20 px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none font-mono"
+                                  onClick={e => e.stopPropagation()}
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={e => { e.stopPropagation(); doSubmitResult(task.id, submitResult.result); }}
+                                    disabled={!submitResult.result}
+                                    className="px-4 py-1.5 text-xs border transition"
+                                    style={{ borderColor: CYAN, color: CYAN }}
+                                  >
+                                    {lang === "en" ? "Submit Result" : "提交结果"}
+                                  </button>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setSubmitResultState(null); }}
+                                    className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition"
+                                  >
+                                    {lang === "en" ? "Cancel" : "取消"}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={e => { e.stopPropagation(); setSubmitResultState({ taskId: task.id, result: "" }); }}
+                                className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
+                                style={{ borderColor: CYAN, color: CYAN }}
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                {lang === "en" ? "Submit My Result" : "提交我的结果"}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

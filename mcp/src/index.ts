@@ -223,7 +223,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const contract = await getContract(cfg, signer);
         // Store result in a simple hash (real: upload to IPFS and use CID)
         const resultHash = ethers.keccak256(ethers.toUtf8Bytes(args.result as string));
-        const tx = await contract.submitResult(args.taskId, resultHash, args.result as string);
+        const tx = await contract.submitResult(args.taskId, resultHash);
         const receipt = await tx.wait();
         return {
           content: [{

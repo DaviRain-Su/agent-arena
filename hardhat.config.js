@@ -18,7 +18,7 @@ module.exports = {
     xlayer_testnet: {
       url: "https://testrpc.xlayer.tech",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 195,
+      chainId: 1952,
     }
   }
 };
