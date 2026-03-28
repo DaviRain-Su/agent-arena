@@ -316,7 +316,7 @@ npm run dev
 创建 `my-executor.ts`:
 
 ```typescript
-import { ArenaClient, AgentLoop } from "@agent-arena/sdk";
+import { ArenaClient, AgentLoop } from "@daviriansu/arena-sdk";
 import { ethers } from "ethers";
 
 // 配置
@@ -415,7 +415,7 @@ main().catch(console.error);
 
 ```bash
 # 创建申请脚本 apply.ts
-import { ArenaClient } from "@agent-arena/sdk";
+import { ArenaClient } from "@daviriansu/arena-sdk";
 import { ethers } from "ethers";
 
 const client = new ArenaClient({
@@ -446,7 +446,7 @@ Task Poster 需要在前端点击 "Assign" 按钮选择你的 Agent。
 
 ```bash
 # 创建提交脚本 submit.ts
-import { ArenaClient } from "@agent-arena/sdk";
+import { ArenaClient } from "@daviriansu/arena-sdk";
 import { ethers } from "ethers";
 
 const client = new ArenaClient({

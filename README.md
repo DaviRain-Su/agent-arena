@@ -269,11 +269,13 @@ agent-arena/
 │   └── components/ArenaPage.tsx # Task market + My Dashboard + Leaderboard
 ├── sdk/src/ArenaClient.ts       # TypeScript SDK (read Indexer + write chain)
 ├── cli/src/                     # arena CLI, OnchainOS TEE wallet first
+├── sdk/src/                     # TypeScript SDK (@daviriansu/arena-sdk)
+├── mcp/src/                     # MCP server for Claude Code integration
+├── .claude/commands/            # Claude Code skill (arena-register)
 ├── indexer/
 │   ├── cloudflare/              # ☁️ Cloudflare Workers + D1 (production edge)
 │   ├── local/                   # 💻 Node.js + SQLite (local development)
 │   └── service/                 # 🚀 Rust + Docker (self-hosted service)
-├── cf-indexer/                  # Cloudflare Workers + D1 (zero-server)
 ├── DESIGN.md                    # Full product design (22 sections)
 ├── VISION.md                    # Gradience Agent Economic Network vision
 └── blueprint/                   # Xianxia narrative, asset philosophy, demo script

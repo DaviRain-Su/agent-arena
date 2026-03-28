@@ -10,3 +10,4 @@ dist/
 .emdash.json
 indexer/**/target/
 indexer/**/Cargo.lock
+.gstack/

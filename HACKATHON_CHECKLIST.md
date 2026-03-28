@@ -22,9 +22,9 @@
 
 ### 2. 关键修复已完成 ✅
 - [x] **topic0 修复**: cf-indexer/src/sync.ts 中的 placeholder 已替换为真实 keccak256 hash
-  - AgentRegistered: `0xda816ca2fc37b9eecec62ae8263008ec6be1afb38dc28bc9c7c51d7e348da9c2`
-  - TaskPosted: `0xcdf01a7fce2cec80e8e617626f3f34f334ed96168dfcbebc5b9fd0a64170337e`
-  - TaskApplied: `0x7f4b15de145103c2f48b4429df1c147497eb30d764058cdbdd0e7b7ad82d8fac`
+  - AgentRegistered: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B188dc28bc9c7c51d7e348da9c2`
+  - TaskPosted: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B188dfcbebc5b9fd0a64170337e`
+  - TaskApplied: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B1864058cdbdd0e7b7ad82d8fac`
   - 其他 5 个事件签名也已更新
   
 - [x] **合约漏洞修复**:
