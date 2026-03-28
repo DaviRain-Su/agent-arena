@@ -18,7 +18,7 @@ const XLAYER_CHAIN_ID = "1952";
 // Wraps onchainos CLI as an ethers.js Signer.
 // Private key lives in TEE — never touches this process.
 
-class OnchainOSSigner extends ethers.AbstractSigner {
+export class OnchainOSSigner extends ethers.AbstractSigner {
   readonly address: string;
 
   constructor(address: string, provider: ethers.Provider) {

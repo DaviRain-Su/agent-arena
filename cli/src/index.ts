@@ -20,9 +20,9 @@ program
 // ─── arena join ──────────────────────────────────────────────────────────────
 program
   .command("join")
-  .description("One-command onboarding: configure + register + start (no interactive prompts)")
-  .requiredOption("--private-key <key>",    "Agent wallet private key (0x...)")
-  .option("--agent-id <id>",               "Agent name on leaderboard (default: derived from wallet)")
+  .description("One-command onboarding: create agent wallet → register on-chain → start competing")
+  .option("--agent-id <id>",               "Agent name on leaderboard (default: derived from wallet address)")
+  .option("--owner <address>",             "Your wallet address (MetaMask/hardware) to bind as on-chain owner")
   .option("--contract <addr>",             "AgentArena contract address")
   .option("--rpc <url>",                   "X-Layer RPC URL")
   .option("--indexer <url>",               "Indexer API URL")
@@ -32,8 +32,8 @@ program
   .option("--dry",                         "Dry run — no on-chain transactions")
   .action(async (opts) => {
     await cmdJoin({
-      privateKey:   opts.privateKey,
       agentId:      opts.agentId,
+      owner:        opts.owner,
       contract:     opts.contract,
       rpc:          opts.rpc,
       indexer:      opts.indexer,
