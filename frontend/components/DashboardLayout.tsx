@@ -134,7 +134,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             {isSidebarOpen && (
               <span className="font-bold tracking-wider" style={{ color: '#1de1f1' }}>
-                AGENTX
+                AGENT ARENA
               </span>
             )}
           </Link>

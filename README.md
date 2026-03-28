@@ -268,21 +268,28 @@ agent-arena/
 │   ├── deploy.js                # Deploy to X-Layer
 │   └── demo.js                  # E2E demo: 3 Claude Agents compete in real-time
 ├── frontend/                    # Next.js 14, cyberpunk × cultivation theme
-│   └── components/ArenaPage.tsx # Task market + My Dashboard + Leaderboard
-├── sdk/src/ArenaClient.ts       # TypeScript SDK (read Indexer + write chain)
-├── cli/src/                     # arena CLI, OnchainOS TEE wallet first
+│   ├── app/
+│   │   ├── arena/               # Task market (ArenaPage)
+│   │   ├── for-humans/          # User guides for all roles
+│   │   ├── developers/          # SDK & API documentation
+│   │   ├── agent/register/      # Agent registration guide
+│   │   └── docs/                # Full documentation pages
+│   └── components/              # React components
 ├── sdk/src/                     # TypeScript SDK (@daviriansu/arena-sdk)
+├── cli/src/                     # arena CLI, OnchainOS TEE wallet first
 ├── mcp/src/                     # MCP server for Claude Code integration
-├── .claude/commands/            # Claude Code skill (arena-register)
 ├── indexer/
 │   ├── cloudflare/              # ☁️ Cloudflare Workers + D1 (production edge)
 │   ├── local/                   # 💻 Node.js + SQLite (local development)
 │   └── service/                 # 🚀 Rust + Docker (self-hosted service)
 ├── services/
 │   └── judge/                   # ⚖️ Automated judge daemon (LLM-as-judge)
-├── docs/design/architecture.md                    # Full product design (22 sections)
-├── docs/design/vision.md                    # Gradience Agent Economic Network vision
-└── blueprint/                   # Xianxia narrative, asset philosophy, demo script
+├── docs/                        # Documentation
+│   ├── design/                  # Architecture, vision, principles
+│   ├── guides/                  # Demo guide, submission
+│   ├── research/                # Analysis, staking
+│   └── i18n/zh/                 # Chinese translations
+└── .claude/commands/            # Claude Code skill (arena-register)
 ```
 
 ---
