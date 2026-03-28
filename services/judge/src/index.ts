@@ -419,8 +419,8 @@ class JudgeService {
     submission: string
   ): string {
     const report = {
-      taskId: task.id,
-      taskDescription: task.description,
+      taskId: Number(task.id),
+      taskDescription: String(task.description),
       timestamp: Date.now(),
       score,
       breakdown,
@@ -429,7 +429,8 @@ class JudgeService {
       note: "Full evaluation report - base64 encoded for transparency. Decode at base64decode.org"
     };
     
-    const jsonStr = JSON.stringify(report, null, 2);
+    const jsonStr = JSON.stringify(report, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value, 2);
     const base64 = Buffer.from(jsonStr).toString("base64");
     
     // data URI format - contains full details, can be decoded by anyone

@@ -16,9 +16,16 @@ export async function runTests(
     const sandbox = await provider.create({ timeout: 5000 });
     try {
       const args = tc.input.map(a => JSON.stringify(a)).join(", ");
+      // Strip markdown fences and extra text that agents might include
+      const cleanCode = code
+        .replace(/^```\w*\n?/gm, "")
+        .replace(/\n?```$/gm, "")
+        .trim();
       const script = `
-        ${code}
-        var __result = ${functionName}(${args});
+        ${cleanCode};
+        var __result = (typeof ${functionName} === "function")
+          ? ${functionName}(${args})
+          : eval("(" + ${JSON.stringify(cleanCode)} + ")")(${args});
         console.log(JSON.stringify(__result));
       `;
 
