@@ -687,7 +687,8 @@ export function ArenaPage() {
                             <div className="space-y-1.5">
                               {task.applicants.map(a => {
                                 const isPoster = task.poster.toLowerCase() === address?.toLowerCase();
-                                const canAssign = isPoster && task.status === 0 && !task.assignedAgent;
+                                const canAssign = isPoster && task.status === 0
+                                  && (!task.assignedAgent || task.assignedAgent === ethers.ZeroAddress);
                                 return (
                                   <div key={a} className="flex items-center gap-2 text-xs font-mono text-white/50">
                                     <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
@@ -731,7 +732,7 @@ export function ArenaPage() {
                         {/* Submit Result — assigned agent only */}
                         {task.status === 1 &&
                           task.assignedAgent.toLowerCase() === address?.toLowerCase() &&
-                          !task.resultHash && (
+                          (!task.resultHash || task.resultHash === ethers.ZeroHash) && (
                           <div className="pt-2 border-t border-white/10">
                             {submitResult?.taskId === task.id ? (
                               <div className="space-y-2">
