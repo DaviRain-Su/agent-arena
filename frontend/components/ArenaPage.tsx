@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import { useWeb3 } from "./Web3Provider";
 import { DashboardLayout } from "./DashboardLayout";
@@ -183,10 +183,12 @@ export function ArenaPage() {
   }, [provider, loadData]);
 
   // Poll for updates (X-Layer RPC doesn't support eth_newFilter)
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
   useEffect(() => {
-    const id = setInterval(() => { loadData().catch(console.error); }, 15_000);
+    const id = setInterval(() => { loadDataRef.current().catch(console.error); }, 15_000);
     return () => clearInterval(id);
-  }, [loadData]);
+  }, []);
 
   // Post task form state
   const [evalType, setEvalType] = useState<"manual" | "test_cases" | "judge_prompt">("manual");

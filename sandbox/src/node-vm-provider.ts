@@ -39,47 +39,75 @@ class NodeVMSandbox implements Sandbox {
     const stdout: string[] = [];
     const stderr: string[] = [];
 
-    const context = vm.createContext(
-      {
-        __files: Object.fromEntries(this.files),
-        console: {
-          log: (...args: unknown[]) => stdout.push(args.map(String).join(" ")),
-          error: (...args: unknown[]) => stderr.push(args.map(String).join(" ")),
-          warn: (...args: unknown[]) => stderr.push(args.map(String).join(" ")),
-        },
-        JSON,
-        Array,
-        Object,
-        Map,
-        Set,
-        Math,
-        Date,
-        Error,
-        TypeError,
-        RangeError,
-        parseInt,
-        parseFloat,
-        isNaN,
-        isFinite,
-        undefined,
-        NaN,
-        Infinity,
-        RegExp,
-        String,
-        Number,
-        Boolean,
-        Symbol,
-        Promise,
-        setTimeout: undefined,
-        setInterval: undefined,
-        process: undefined,
-        require: undefined,
-        globalThis: undefined,
-      },
-      {
-        codeGeneration: { strings: false, wasm: false },
-      },
-    );
+    const frozenFiles = Object.freeze(Object.fromEntries(this.files));
+    const frozenConsole = Object.freeze({
+      log: (...args: unknown[]) => stdout.push(args.map(String).join(" ")),
+      error: (...args: unknown[]) => stderr.push(args.map(String).join(" ")),
+      warn: (...args: unknown[]) => stderr.push(args.map(String).join(" ")),
+    });
+
+    // Tamed Promise: freeze constructor to block escape via Promise.constructor
+    const TamedPromise = Object.freeze(Object.create(Promise, {
+      constructor: { value: undefined, writable: false, configurable: false },
+    }));
+    Object.freeze(TamedPromise.__proto__);
+
+    const contextObj: Record<string, unknown> = {
+      __files: frozenFiles,
+      console: frozenConsole,
+      JSON: Object.freeze({ parse: JSON.parse, stringify: JSON.stringify }),
+      Array,
+      Object,
+      Map,
+      Set,
+      Math,
+      Date,
+      Error,
+      TypeError,
+      RangeError,
+      parseInt,
+      parseFloat,
+      isNaN,
+      isFinite,
+      undefined,
+      NaN,
+      Infinity,
+      RegExp,
+      String,
+      Number,
+      Boolean,
+      Symbol,
+      Promise: TamedPromise,
+      setTimeout: undefined,
+      setInterval: undefined,
+      setImmediate: undefined,
+      clearTimeout: undefined,
+      clearInterval: undefined,
+      clearImmediate: undefined,
+      queueMicrotask: undefined,
+      process: undefined,
+      require: undefined,
+      globalThis: undefined,
+      global: undefined,
+      Buffer: undefined,
+      fetch: undefined,
+      URL: undefined,
+      URLSearchParams: undefined,
+      TextEncoder: undefined,
+      TextDecoder: undefined,
+      WebAssembly: undefined,
+    };
+
+    // Freeze all own properties to prevent prototype pollution
+    Object.keys(contextObj).forEach(k => {
+      if (contextObj[k] != null && typeof contextObj[k] === "object") {
+        try { Object.freeze(contextObj[k]); } catch { /* primitives/builtins may already be frozen */ }
+      }
+    });
+
+    const context = vm.createContext(contextObj, {
+      codeGeneration: { strings: false, wasm: false },
+    });
 
     try {
       const script = new vm.Script(command, { filename: "sandbox.js" });

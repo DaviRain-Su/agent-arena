@@ -95,11 +95,23 @@ export function createApp(provider, contract) {
   // Agents POST full content here before calling submitResult() on-chain.
   // The judge service fetches from here first, falling back to IPFS/eval.
 
-  app.post("/results/:taskId", (req, res) => {
+  app.post("/results/:taskId", async (req, res) => {
     const taskId = parseInt(req.params.taskId);
     const { content, agentAddress } = req.body;
     if (!content || typeof content !== "string") {
       return res.status(400).json({ error: "content (string) required" });
+    }
+    if (!agentAddress || typeof agentAddress !== "string") {
+      return res.status(400).json({ error: "agentAddress (string) required" });
+    }
+    // Verify caller is the assigned agent for this task
+    try {
+      const task = await contract.tasks(taskId);
+      if (task.assignedAgent.toLowerCase() !== agentAddress.toLowerCase()) {
+        return res.status(403).json({ error: "Not the assigned agent for this task" });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: `Failed to verify task: ${e.message || e}` });
     }
     storeResult(taskId, content, agentAddress);
     res.json({ ok: true, taskId });

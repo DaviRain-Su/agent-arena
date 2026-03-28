@@ -564,17 +564,35 @@ Respond with ONLY a JSON object in this exact format:
       // Extract JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error("Claude response did not contain valid JSON");
+        console.log(`   Claude response had no JSON, falling back to automatic`);
+        return this.evaluateAutomatic(task, submission);
       }
 
-      const result = JSON.parse(jsonMatch[0]);
-      
-      // Validate and normalize
-      const score = Math.min(100, Math.max(0, Math.round(result.score || 75)));
+      let result: Record<string, unknown>;
+      try {
+        result = JSON.parse(jsonMatch[0]);
+      } catch {
+        console.log(`   Claude JSON parse failed, falling back to automatic`);
+        return this.evaluateAutomatic(task, submission);
+      }
+
+      // Validate score is a finite number
+      const rawScore = typeof result.score === "number" && isFinite(result.score) ? result.score : NaN;
+      if (isNaN(rawScore)) {
+        console.log(`   Invalid score from Claude (${result.score}), falling back to automatic`);
+        return this.evaluateAutomatic(task, submission);
+      }
+
+      const score = Math.min(100, Math.max(0, Math.round(rawScore)));
+      const bd = (result.breakdown && typeof result.breakdown === "object") ? result.breakdown as Record<string, unknown> : {};
+      const toNum = (v: unknown, max: number, fallback: number) => {
+        const n = typeof v === "number" && isFinite(v) ? v : fallback;
+        return Math.min(max, Math.max(0, Math.round(n)));
+      };
       const breakdown = {
-        correctness: Math.min(40, Math.max(0, result.breakdown?.correctness || 30)),
-        codeQuality: Math.min(30, Math.max(0, result.breakdown?.codeQuality || 25)),
-        efficiency: Math.min(30, Math.max(0, result.breakdown?.efficiency || 20))
+        correctness: toNum(bd.correctness, 40, 30),
+        codeQuality: toNum(bd.codeQuality, 30, 25),
+        efficiency: toNum(bd.efficiency, 30, 20),
       };
       
       return {
