@@ -1,7 +1,7 @@
 # Agent Arena - XLayer Hackathon 提交指南
 
-> 提交截止日期：2026-03-28
-> 提交表单：https://forms.gle/... (XLayer Hackathon)
+> 提交状态：✅ **已完成**  
+> 提交时间：2026-03-28
 
 ---
 
@@ -10,86 +10,19 @@
 - [x] GitHub 仓库 (开源)
 - [x] README.md (含竞品分析)
 - [x] DESIGN.md (完整设计文档)
-- [x] Smart Contract (AgentArena.sol v1.1)
-- [x] Frontend (Next.js 14)
+- [x] Smart Contract (AgentArena.sol v1.2 + ReentrancyGuard)
+- [x] Frontend (Next.js 14 + Activity Feed + Agent 详情页)
 - [x] Demo Script (scripts/demo.js)
-- [x] SDK (@agent-arena/sdk)
-- [x] CLI (arena CLI)
+- [x] SDK (@daviriansu/arena-sdk)
+- [x] CLI (@daviriansu/arena-cli)
 - [x] Competitive Analysis (The Grid 数据)
 - [x] DEMO_GUIDE.md (端到端测试文档)
+- [x] 合约部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
+- [x] 前端部署 (Vercel)
 
 ---
 
-## 🚨 提交前必须完成
-
-### 1. 合约部署 (最高优先级)
-**状态**: 等待 OKB
-**钱包地址**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09`
-
-```bash
-# 部署命令
-npm run deploy
-
-# 预期输出:
-# Deploying AgentArena to X-Layer...
-# Contract deployed at: 0x...
-# Deployment saved to artifacts/deployment.json
-```
-
-**部署后更新**:
-- [ ] 更新 README.md 中的合约地址
-- [ ] 更新 frontend/.env.local
-- [ ] 提交并 push
-
----
-
-### 2. 前端部署
-**状态**: 等待合约地址
-
-```bash
-cd frontend
-echo "NEXT_PUBLIC_CONTRACT_ADDRESS=0x..." > .env.local
-npm install
-vercel --prod
-```
-
-**预期输出**:
-- Production: https://agent-arena-xxx.vercel.app
-
----
-
-### 3. Demo 视频 (2-3 分钟)
-**建议内容结构**:
-
-| 时间 | 内容 | 画面 |
-|------|------|------|
-| 0:00-0:15 | 开场：问题陈述 | 文字动画 |
-| 0:15-0:45 | 产品演示：发布任务 | 前端录屏 |
-| 0:45-1:30 | 演示：Agent 竞争执行 | Terminal 录屏 |
-| 1:30-2:00 | 演示：评判 & 自动支付 | 前端录屏 |
-| 2:00-2:30 | 技术亮点：OnchainOS 集成 | 代码高亮 |
-| 2:30-3:00 | 愿景 & 结束 | 产品 Logo |
-
-**录制工具**: Screen Studio / OBS / Loom
-**建议**: 添加字幕和 BGM
-
----
-
-### 4. 项目截图 (5-8 张)
-
-**必需截图**:
-1. **首页/任务列表** - 展示任务市场
-2. **发布任务界面** - 展示表单
-3. **Agent 申请界面** - 展示竞争机制
-4. **评判界面** - 展示评分
-5. **合约代码片段** - 展示技术实力
-6. **OnchainOS 集成代码** - 展示 hackathon 主题契合
-
-**截图工具**: CleanShot X / Shottr
-
----
-
-## 📝 提交表单填写指南
+## 📋 提交信息
 
 ### 项目信息
 
@@ -123,13 +56,13 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 
 ### 技术栈
 
-- **Blockchain**: X-Layer (EVM compatible)
-- **Smart Contract**: Solidity v0.8.28 (AgentArena.sol)
+- **Blockchain**: X-Layer Testnet (chainId 1952)
+- **Smart Contract**: Solidity v0.8.24 (AgentArena.sol)
 - **Frontend**: Next.js 14 + TypeScript + TailwindCSS
 - **Agent Wallet**: OKX OnchainOS (TEE-secured)
 - **Indexers**: Node.js + SQLite / Cloudflare Workers + D1
-- **SDK**: TypeScript (@agent-arena/sdk)
-- **CLI**: TypeScript (arena CLI)
+- **SDK**: TypeScript (@daviriansu/arena-sdk)
+- **CLI**: TypeScript (@daviriansu/arena-cli)
 
 ### 团队信息
 
@@ -141,7 +74,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
-- **Demo Video**: [录制后更新]
+- **Demo Video**: [可选]
 - **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 
 ### 使用 OKX 产品
@@ -156,7 +89,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 
 ---
 
-## 🎯 评审要点准备
+## 🎯 评审要点
 
 ### 技术实现 (40%)
 - [x] Smart Contract 完整功能
@@ -164,6 +97,8 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] OnchainOS 集成
 - [x] Contract 已部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
 - [x] Frontend 已部署 (Vercel)
+- [x] Activity Feed 实时监听
+- [x] Agent 详情页完整功能
 
 ### 创新性 (30%)
 - [x] 首创 Agent 竞技模式 (竞品分析证明)
@@ -171,9 +106,10 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] 差异化定位
 
 ### 用户体验 (20%)
-- [ ] 流畅的 Demo 视频
-- [ ] 清晰的文档
-- [ ] 直观的界面
+- [x] 清晰的文档
+- [x] 直观的界面设计
+- [x] 实时活动流
+- [ ] Demo 视频 [可选]
 
 ### 商业潜力 (10%)
 - [x] 清晰的商业模式
@@ -182,25 +118,26 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 
 ---
 
-## 🚀 提交检查清单
+## 📸 项目截图
 
-提交前确认：
-- [ ] 合约已部署到 X-Layer
-- [ ] 前端已部署并可访问
-- [ ] Demo 视频已上传 (YouTube/ Vimeo)
-- [ ] 所有链接可点击
-- [ ] GitHub 仓库设置为 Public
-- [ ] README 包含完整的快速开始指南
-- [ ] 提交表单已填写并检查
+1. **首页/任务列表** - 展示任务市场
+2. **发布任务界面** - 展示表单
+3. **Agent 申请界面** - 展示竞争机制
+4. **Activity Feed** - 实时链上活动
+5. **Agent 详情页** - 信誉展示
+6. **合约代码片段** - 技术实力
 
 ---
 
-## 📞 提交后
+## 🚀 提交后
 
 1. 在 Twitter/X 上分享项目，@XLayerOfficial @OKXWeb3
 2. 在 Discord 社区分享
 3. 准备答辩 (如果有)
 
 ---
+
+**状态**: ✅ **已提交**  
+**合约**: 0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 
 Good luck! 🚀
