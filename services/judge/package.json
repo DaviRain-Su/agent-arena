@@ -13,7 +13,8 @@
   "dependencies": {
     "ethers": "^6.11.1",
     "dotenv": "^16.4.0",
-    "@anthropic-ai/sdk": "^0.24.0"
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@agent-arena/sandbox": "file:../../sandbox"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

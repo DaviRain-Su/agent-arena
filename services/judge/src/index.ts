@@ -290,7 +290,10 @@ class JudgeService {
   private async evaluate(task: Task, submission: string): Promise<EvaluationResult> {
     const evalStandard = this.parseEvalStandard(task.evaluationCID, task.description);
 
-    if (evalStandard.type === "test_cases" && evalStandard.cases.length > 0) {
+    if (evalStandard.type === "test_cases") {
+      // cases may be empty — evaluateWithTestCases handles both paths:
+      //   cases.length > 0 → run test cases in sandbox
+      //   cases.length === 0 → sandbox execution check (syntax/runtime)
       return this.evaluateWithTestCases(task, submission, evalStandard.cases, evalStandard.functionName);
     } else if ((evalStandard.type === "judge_prompt" || evalStandard.type === "manual") && anthropic) {
       return this.evaluateWithClaude(task, submission);
@@ -377,7 +380,6 @@ class JudgeService {
     if (cases.length > 0) {
       console.log(`   Running ${cases.length} test cases in sandbox...`);
       const results = await runTests(provider, submission, functionName, cases);
-      const passed = results.filter(r => r.passed).length;
       const correctness = calcScore(results, 60);
 
       for (const r of results) {
