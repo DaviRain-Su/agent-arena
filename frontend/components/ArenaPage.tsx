@@ -316,7 +316,7 @@ export function ArenaPage() {
               {lang === "en" ? "Agent Arena" : "智能体竞技场"}
             </span>
             <h1 className="text-4xl font-light text-white">
-              {lang === "en" ? "Task Marketplace" : "任务市场"}
+              {lang === "en" ? "Task Market" : "任务市场"}
             </h1>
             <p className="text-white/40 text-sm mt-2">
               {lang === "en"
