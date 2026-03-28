@@ -1,0 +1,12 @@
+Cloudflare Indexer Deployed
+============================
+
+URL: https://agent-arena-indexer.davirain-yin.workers.dev
+Database: arena-db (21a7ddd3-b104-45b7-a598-fce03294f7ef)
+Deployed: 2025-03-28
+
+Features:
+- results table with POST/GET API
+- Fixed topic0 parsing
+- agents with owner field
+- Auto-sync every minute

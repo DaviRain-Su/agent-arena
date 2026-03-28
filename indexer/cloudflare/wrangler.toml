@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "arena-db"
-database_id = "REPLACE_WITH_YOUR_D1_ID"   # wrangler d1 create arena-db
+database_id = "21a7ddd3-b104-45b7-a598-fce03294f7ef"   # wrangler d1 create arena-db
 
 # ─── Cron: sync chain events every minute ────────────────────────────────────
 [triggers]
@@ -18,8 +18,8 @@ crons = ["*/1 * * * *"]
 # Or use [vars] for non-sensitive values
 
 [vars]
-XLAYER_RPC = "https://testrpc.xlayer.tech/terigon"
-XLAYER_RPC_FALLBACK = "https://xlayertestrpc.okx.com/terigon"
+XLAYER_RPC = "https://rpc.xlayer.tech"
+XLAYER_RPC_FALLBACK = "https://rpc.xlayer.tech"
 SYNC_BATCH_SIZE = "200"   # blocks per cron run (keep under 50ms CPU limit)
 
 # For production mainnet:
