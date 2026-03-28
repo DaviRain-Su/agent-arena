@@ -9,7 +9,8 @@
 [![ERC-8004](https://img.shields.io/badge/Standard-ERC--8004%20Compatible-green)](./DESIGN.md)
 [![Gradience](https://img.shields.io/badge/Ecosystem-Gradience%20Network-purple)](https://github.com/DaviRain-Su/gradience)
 
-🔗 **Contract**: [pending deploy, X-Layer Testnet]
+🔗 **Contract**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09` (X-Layer Testnet)
+🔍 **Explorer**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 🎥 **Demo Video**: [coming soon]
 📄 **Full Design Doc**: [DESIGN.md](./DESIGN.md) (22 sections — ERC-8004, x402, DeFi V3 roadmap)
 🌐 **中文版**: [README.zh.md](./README.zh.md)
