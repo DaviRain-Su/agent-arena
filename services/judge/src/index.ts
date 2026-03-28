@@ -364,15 +364,102 @@ class JudgeService {
   private async evaluate(task: Task, submission: string): Promise<EvaluationResult> {
     const evalStandard = this.parseEvalStandard(task.evaluationCID, task.description);
 
+    // Priority 1: Use pi agent (local AI) as the primary judge
+    try {
+      const result = await this.evaluateWithPiAgent(task, submission, evalStandard);
+      if (result) return result;
+    } catch (e) {
+      console.warn(`   pi agent evaluation failed: ${e instanceof Error ? e.message : String(e)}, falling back...`);
+    }
+
+    // Priority 2: Sandbox test cases
     if (evalStandard.type === "test_cases") {
-      // cases may be empty — evaluateWithTestCases handles both paths:
-      //   cases.length > 0 → run test cases in sandbox
-      //   cases.length === 0 → sandbox execution check (syntax/runtime)
       return this.evaluateWithTestCases(task, submission, evalStandard.cases, evalStandard.functionName);
     } else if ((evalStandard.type === "judge_prompt" || evalStandard.type === "manual") && anthropic) {
       return this.evaluateWithClaude(task, submission);
     } else {
       return this.evaluateAutomatic(task, submission);
+    }
+  }
+
+  private async evaluateWithPiAgent(
+    task: Task,
+    submission: string,
+    evalStandard: { type: string; cases: TestCase[]; functionName: string },
+  ): Promise<EvaluationResult | null> {
+    const { spawnSync } = await import("child_process");
+
+    // Check if pi is available
+    const which = spawnSync("which", ["pi"], { encoding: "utf8" });
+    if (which.status !== 0) return null;
+
+    console.log("   Using pi agent (k2p5) as judge...");
+
+    let testCasesSection = "";
+    if (evalStandard.cases.length > 0) {
+      testCasesSection = `\n## Test Cases\n\`\`\`json\n${JSON.stringify(evalStandard.cases, null, 2)}\n\`\`\`\n`;
+    }
+
+    const prompt = `You are judging a coding task submission for a decentralized AI marketplace.
+
+## Task Description
+${task.description}
+${testCasesSection}
+## Submitted Code
+\`\`\`
+${submission}
+\`\`\`
+
+## Instructions
+1. If test cases are provided, mentally run each test case against the code and check correctness
+2. Evaluate code quality (readability, efficiency, edge case handling)
+3. Score from 0-100:
+   - correctness (0-60): does it pass test cases / fulfill requirements?
+   - codeQuality (0-20): clean, readable, well-structured?
+   - efficiency (0-20): good algorithm choice, no unnecessary work?
+
+Return ONLY a JSON object, no explanation, no markdown fences:
+{"score": <number>, "correctness": <number>, "codeQuality": <number>, "efficiency": <number>, "feedback": "<one sentence>"}`;
+
+    const result = spawnSync("pi", ["--model", "k2p5", "-p", prompt], {
+      encoding: "utf8",
+      timeout: 2 * 60_000,
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+
+    if (result.status !== 0 || !result.stdout?.trim()) {
+      console.warn(`   pi agent returned non-zero or empty: ${(result.stderr || "").slice(0, 80)}`);
+      return null;
+    }
+
+    // Parse JSON from pi's output (may have extra text around it)
+    const raw = result.stdout.trim();
+    const jsonMatch = raw.match(/\{[\s\S]*"score"[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn(`   pi agent output not parseable as JSON: ${raw.slice(0, 100)}`);
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const score = Math.min(100, Math.max(0, Number(parsed.score) || 0));
+      const breakdown = {
+        correctness: Math.min(60, Math.max(0, Number(parsed.correctness) || 0)),
+        codeQuality: Math.min(20, Math.max(0, Number(parsed.codeQuality) || 0)),
+        efficiency: Math.min(20, Math.max(0, Number(parsed.efficiency) || 0)),
+      };
+
+      console.log(`   pi agent score: ${score} (${parsed.feedback || "no feedback"})`);
+
+      return {
+        score,
+        winner: task.assignedAgent,
+        reasonURI: this.generateReasonURI(score, breakdown, "pi-agent-k2p5", task, submission),
+        breakdown,
+      };
+    } catch (e) {
+      console.warn(`   Failed to parse pi agent JSON: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
     }
   }
 
