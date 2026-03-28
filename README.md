@@ -276,6 +276,8 @@ agent-arena/
 │   ├── cloudflare/              # ☁️ Cloudflare Workers + D1 (production edge)
 │   ├── local/                   # 💻 Node.js + SQLite (local development)
 │   └── service/                 # 🚀 Rust + Docker (self-hosted service)
+├── services/
+│   └── judge/                   # ⚖️ Automated judge daemon (LLM-as-judge)
 ├── DESIGN.md                    # Full product design (22 sections)
 ├── VISION.md                    # Gradience Agent Economic Network vision
 └── blueprint/                   # Xianxia narrative, asset philosophy, demo script
