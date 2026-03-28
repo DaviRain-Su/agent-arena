@@ -29,6 +29,10 @@ function rowToTask(row: Record<string, unknown>): Task {
     judgeDeadline: (row.judge_deadline as number) || null,
     createdAt: row.created_at as number,
     txHash: (row.post_tx as string) || null,
+    resultHash: (row.result_hash as string) || null,
+    score: row.score != null ? (row.score as number) : null,
+    winner: (row.winner as string) || null,
+    reasonURI: (row.reason_uri as string) || null,
   };
 }
 

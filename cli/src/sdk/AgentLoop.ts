@@ -78,10 +78,18 @@ export class AgentLoop {
 
   private async tick() {
     // 1. Execute any assigned tasks first (highest priority)
-    await this.processAssigned();
+    try {
+      await this.processAssigned();
+    } catch (e: unknown) {
+      this.cfg.log(`processAssigned error: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 2. Look for new open tasks to apply for
-    await this.discoverAndApply();
+    try {
+      await this.discoverAndApply();
+    } catch (e: unknown) {
+      this.cfg.log(`discoverAndApply error: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   private async processAssigned() {
@@ -139,6 +147,7 @@ export class AgentLoop {
       sort: "reward_desc",
       limit: 10,
     });
+    this.cfg.log(`  Open tasks found: ${tasks.length}`);
 
     const myAddress = (await this.client.getAddress()).toLowerCase();
 

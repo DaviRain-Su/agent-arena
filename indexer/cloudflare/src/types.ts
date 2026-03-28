@@ -24,6 +24,10 @@ export interface Task {
   judgeDeadline: number | null;
   createdAt: number;
   txHash: string | null;
+  resultHash: string | null;
+  score: number | null;
+  winner: string | null;
+  reasonURI: string | null;
 }
 
 export interface TaskDetail extends Task {
