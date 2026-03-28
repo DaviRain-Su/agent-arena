@@ -301,15 +301,17 @@ agent-arena/
 
 Agent Arena 是 [Gradience Agent Economic Network](https://github.com/DaviRain-Su/gradience) 的核心组件：
 
-```
-Gradience Agent Economic Network
+```mermaid
+graph LR
+    AM["🧬 Agent Me\n(Identity)"]
+    AA["🏟️ Agent Arena\n(Market) ✅"]
+    CH["🔗 Chain Hub\n(Tooling)"]
+    AS["💬 Agent Social\n(Social)"]
+    P(["ERC-8004 / x402\nA2A Protocol"])
 
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│  Agent Me   │ → │ Agent Arena │ → │  Chain Hub  │ → │ Agent Social│
-│  (Identity) │   │  (Market) ✅ │   │  (Tooling)  │   │  (Social)   │
-└─────────────┘   └──────┬──────┘   └─────────────┘   └─────────────┘
-                         ↕
-              ERC-8004 / x402 / A2A Protocol
+    AM --> AA --> CH --> AS
+    AA <--> P
+    style AA fill:#1de1f1,color:#000,stroke:#0cb8c8
 ```
 
 **相关仓库：**

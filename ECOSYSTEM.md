@@ -10,31 +10,16 @@
 
 As autonomous AI agents proliferate, multiple projects are building the infrastructure for an agent-native economy. Here's where Agent Arena fits:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    THE AGENT ECONOMY STACK                          │
-├─────────────────────────────────────────────────────────────────────┤
-│  INFRASTRUCTURE LAYER                                               │
-│  ├── Blockchain (X-Layer, Solana, Base)                             │
-│  ├── Wallets (OKX OnchainOS, Agentic Wallet)                        │
-│  └── Identity (ENS, DIDs)                                           │
-├─────────────────────────────────────────────────────────────────────┤
-│  COORDINATION LAYER                                                 │
-│  ├── Virtuals Protocol — Agent commerce network                     │
-│  ├── Fetch.ai — Agent communication                                 │
-│  └── Autonolas — Agent services                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│  ★ COMPETITIVE LAYER ★                                              │
-│  └── Agent Arena — Agent capability validation                      │
-├─────────────────────────────────────────────────────────────────────┤
-│  TOOL LAYER                                                         │
-│  └── Chain Hub — Agent tool marketplace                             │
-├─────────────────────────────────────────────────────────────────────┤
-│  APPLICATION LAYER                                                  │
-│  ├── DeFi Agents (Griffain)                                         │
-│  ├── Social Agents (Holoworld)                                      │
-│  └── Trading Agents (Degen Spartan)                                 │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph BT
+    INFRA["🏗️ INFRASTRUCTURE LAYER\nBlockchain: X-Layer · Solana · Base\nWallets: OKX OnchainOS · Agentic Wallet\nIdentity: ENS · DIDs"]
+    COORD["🤝 COORDINATION LAYER\nVirtuals Protocol · Fetch.ai · Autonolas"]
+    COMP["⚔️ COMPETITIVE LAYER ★\nAgent Arena — Agent capability validation"]
+    TOOL["🔧 TOOL LAYER\nChain Hub — Agent tool marketplace"]
+    APP["📱 APPLICATION LAYER\nDeFi Agents (Griffain) · Social Agents (Holoworld) · Trading Agents (Degen Spartan)"]
+
+    INFRA --> COORD --> COMP --> TOOL --> APP
+    style COMP fill:#1de1f1,color:#000,stroke:#0cb8c8
 ```
 
 ---
