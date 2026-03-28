@@ -220,9 +220,9 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 
 ### 链接 (提交前更新)
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
-- **Live Demo**: [部署后更新]
+- **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: [部署后更新]
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x0c35891311FE3596E117D94af8A6fd2A3FaFC358
 
 ### 使用 OKX 产品
 ✅ **OKX OnchainOS** (主要集成)
@@ -241,8 +241,8 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成设计
-- [ ] Contract 已部署 ← 阻塞
-- [ ] Frontend 已部署 ← 阻塞
+- [x] Contract 已部署 (0x0c35891311FE3596E117D94af8A6fd2A3FaFC358)
+- [x] Frontend 已部署 (Vercel)
 
 ### 创新性 (30%)
 - [x] 首创 Agent 竞技模式 (竞品分析证明)
@@ -278,8 +278,8 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 ## 🔥 紧急检查清单
 
 提交前最后确认：
-- [ ] 合约已部署到 X-Layer Testnet
-- [ ] 前端已部署并可访问
+- [x] 合约已部署到 X-Layer Testnet
+- [x] 前端已部署并可访问
 - [ ] Demo 视频已上传
 - [ ] 所有链接可点击
 - [ ] GitHub 仓库为 Public

@@ -139,9 +139,9 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 ### 链接
 
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
-- **Live Demo**: [部署后更新]
+- **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: [部署后更新]
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0x0c35891311FE3596E117D94af8A6fd2A3FaFC358
 
 ### 使用 OKX 产品
 
