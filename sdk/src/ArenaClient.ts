@@ -66,13 +66,37 @@ export class ArenaClient {
     return data.tasks;
   }
 
-  /** Get my agent profile and reputation */
+  /** Get my agent profile and reputation (Indexer first, fallback to chain) */
   async getMyProfile(): Promise<AgentProfile | null> {
     const address = await this.signer.getAddress();
-    const res = await fetch(`${this.indexerUrl}/agents/${address}`, this.fetchOpts);
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`getMyProfile failed: ${res.statusText}`);
-    return res.json();
+    // Try indexer first
+    try {
+      const res = await fetch(`${this.indexerUrl}/agents/${address}`, this.fetchOpts);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.agentId) return data;
+      }
+    } catch { /* indexer unavailable — fall through */ }
+    // Fallback: read directly from contract
+    try {
+      const info = await this.contract.agents(address);
+      if (!info.registered) return null;
+      const rep = await this.contract.getAgentReputation(address);
+      return {
+        wallet: address,
+        agentId: info.agentId,
+        metadata: info.metadata,
+        tasksCompleted: Number(rep.completed),
+        tasksAttempted: Number(rep.attempted),
+        totalScore: Number(info.totalScore),
+        avgScore: Number(rep.avgScore),
+        winRate: Number(rep.winRate),
+        registeredAt: 0,
+        recentTasks: [],
+      };
+    } catch {
+      return null;
+    }
   }
 
   /** Get leaderboard */

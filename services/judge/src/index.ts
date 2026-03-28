@@ -154,11 +154,12 @@ class JudgeService {
   private async loadInProgressTasks() {
     console.log("Loading historical InProgress tasks...");
     try {
-      const currentBlock = await this.provider.getBlockNumber();
-      const events = await this.contract.queryFilter(
-        this.contract.filters.TaskAssigned(),
-        0,
-        currentBlock
+      const currentBlock = await withRetry(() => this.provider.getBlockNumber(), "getBlockNumber");
+      // X-Layer RPC limits to 100 blocks per query
+      const fromBlock = Math.max(0, currentBlock - 99);
+      const events = await withRetry(
+        () => this.contract.queryFilter(this.contract.filters.TaskAssigned(), fromBlock, currentBlock),
+        "queryFilter(TaskAssigned-backfill)"
       );
       for (const event of events) {
         const taskId = Number((event as any).args?.taskId);
@@ -202,14 +203,16 @@ class JudgeService {
   }
 
   private async poll() {
-    const currentBlock = await this.provider.getBlockNumber();
+    const currentBlock = await withRetry(() => this.provider.getBlockNumber(), "getBlockNumber");
     if (currentBlock <= this.lastBlock) return;
 
+    // X-Layer RPC limits to 100 blocks per query
+    const fromBlock = Math.max(this.lastBlock + 1, currentBlock - 99);
+
     // Query TaskAssigned events to track new InProgress tasks
-    const assignedEvents = await this.contract.queryFilter(
-      this.contract.filters.TaskAssigned(),
-      this.lastBlock + 1,
-      currentBlock
+    const assignedEvents = await withRetry(
+      () => this.contract.queryFilter(this.contract.filters.TaskAssigned(), fromBlock, currentBlock),
+      "queryFilter(TaskAssigned)"
     );
     for (const event of assignedEvents) {
       const taskId = Number((event as any).args?.taskId);
@@ -220,10 +223,9 @@ class JudgeService {
     await this.checkForceRefundable();
 
     // Query ResultSubmitted events
-    const events = await this.contract.queryFilter(
-      this.contract.filters.ResultSubmitted(),
-      this.lastBlock + 1,
-      currentBlock
+    const events = await withRetry(
+      () => this.contract.queryFilter(this.contract.filters.ResultSubmitted(), fromBlock, currentBlock),
+      "queryFilter(ResultSubmitted)"
     );
 
     for (const event of events) {
@@ -242,7 +244,7 @@ class JudgeService {
       console.log(`   Result CID: ${resultHash}`);
 
       // Fetch task details
-      const task = await this.contract.tasks(taskId) as Task;
+      const task = await withRetry(() => this.contract.tasks(taskId), `tasks(${taskId})`) as Task;
       
       // Check if already judged (on-chain status)
       if (task.status !== 1) { // Not InProgress
@@ -639,6 +641,22 @@ Respond with ONLY a JSON object in this exact format:
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(fn: () => Promise<T>, label: string, retries = 3): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isTransient = /socket hang up|ETIMEDOUT|ECONNRESET|ECONNREFUSED|network|timeout|fetch failed/i.test(msg);
+      if (!isTransient || i === retries - 1) throw e;
+      const delay = 2000 * (i + 1);
+      console.warn(`   ⚠️  ${label} failed (attempt ${i + 1}/${retries}): ${msg.slice(0, 60)}, retry in ${delay / 1000}s`);
+      await sleep(delay);
+    }
+  }
+  throw new Error("unreachable");
 }
 
 // Start
