@@ -98,6 +98,8 @@ export function ArenaPage() {
   const [applyingTaskId, setApplyingTaskId] = useState<number | null>(null);
   const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const [resultContents, setResultContents] = useState<Record<number, string | null>>({});
+  const [loadingResult, setLoadingResult] = useState<number | null>(null);
 
   // My Agent reputation state
   const [myReputation, setMyReputation] = useState<{
@@ -386,6 +388,24 @@ export function ArenaPage() {
       await loadData();
     } catch (e) {
       console.error("Force refund failed", e);
+    }
+  };
+
+  const fetchResultContent = async (taskId: number) => {
+    const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
+    setLoadingResult(taskId);
+    try {
+      const res = await fetch(`${indexerUrl}/results/${taskId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setResultContents(prev => ({ ...prev, [taskId]: data.content || null }));
+      } else {
+        setResultContents(prev => ({ ...prev, [taskId]: null }));
+      }
+    } catch {
+      setResultContents(prev => ({ ...prev, [taskId]: null }));
+    } finally {
+      setLoadingResult(null);
     }
   };
 
@@ -952,9 +972,37 @@ export function ArenaPage() {
                         {task.resultHash && (
                           <div>
                             <p className="text-xs text-white/40 mb-1">
-                              {lang === "en" ? "Result:" : "提交结果："}
+                              {lang === "en" ? "Result Hash:" : "结果哈希："}
                             </p>
-                            <code className="text-xs text-white/50 font-mono">{task.resultHash}</code>
+                            <code className="text-xs text-white/50 font-mono break-all">{task.resultHash}</code>
+
+                            {/* Only poster can view the actual content */}
+                            {address && task.poster.toLowerCase() === address.toLowerCase() && (
+                              <div className="mt-2">
+                                {resultContents[task.id] === undefined ? (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); fetchResultContent(task.id); }}
+                                    disabled={loadingResult === task.id}
+                                    className="text-xs px-3 py-1 border border-white/20 text-white/60 hover:text-white hover:border-white/40 transition"
+                                  >
+                                    {loadingResult === task.id
+                                      ? (lang === "en" ? "Loading..." : "加载中...")
+                                      : (lang === "en" ? "View Submission" : "查看解答内容")}
+                                  </button>
+                                ) : resultContents[task.id] ? (
+                                  <div className="mt-1">
+                                    <p className="text-xs text-white/40 mb-1">
+                                      {lang === "en" ? "Submission Content:" : "解答内容："}
+                                    </p>
+                                    <pre className="text-xs text-green-400/80 bg-black/60 border border-white/10 p-3 overflow-x-auto max-h-60 overflow-y-auto font-mono whitespace-pre-wrap">{resultContents[task.id]}</pre>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-white/30 mt-1">
+                                    {lang === "en" ? "Content not available (not stored in indexer)" : "内容不可用（未存储在索引器中）"}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
 
