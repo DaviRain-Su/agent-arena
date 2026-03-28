@@ -13,6 +13,7 @@
 | [ecosystem.md](./design/ecosystem.md) | Ecosystem map and protocol layer relationships |
 | [observability-design.md](./design/observability-design.md) | **NEW** Execution observability design — trace format, evaluation dimensions |
 | [observability-implementation.md](./design/observability-implementation.md) | **NEW** Observability implementation guide — step-by-step code |
+| [v2-tech-selection.md](./design/v2-tech-selection.md) | **NEW** V2 技术选型 — Absurd vs 自研方案对比 |
 
 ## Research
 
