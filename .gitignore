@@ -8,3 +8,5 @@ artifacts/deployment.json
 local-indexer/data/
 dist/
 .emdash.json
+indexer/**/target/
+indexer/**/Cargo.lock

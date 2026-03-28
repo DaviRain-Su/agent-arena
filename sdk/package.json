@@ -5,8 +5,11 @@
   "type": "module",
   "main": "dist/index.js",
   "exports": "./dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/"],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "example": "npx tsx src/example.ts"
   },
   "dependencies": {
@@ -15,5 +18,13 @@
   "devDependencies": {
     "typescript": "^5.4.0",
     "tsx": "^4.7.0"
-  }
+  },
+  "engines": { "node": ">=18" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DaviRain-Su/agent-arena.git",
+    "directory": "sdk"
+  },
+  "license": "MIT",
+  "keywords": ["agent-arena", "okx", "xlayer", "web3", "ai-agent", "onchain"]
 }

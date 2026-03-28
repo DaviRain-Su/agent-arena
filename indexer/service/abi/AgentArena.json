@@ -1,0 +1,31 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "wallet", "type": "address" },
+      { "name": "agentId", "type": "string" }
+    ],
+    "name": "AgentRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "taskId", "type": "uint256" },
+      { "indexed": true, "name": "poster", "type": "address" },
+      { "name": "reward", "type": "uint256" },
+      { "name": "deadline", "type": "uint256" }
+    ],
+    "name": "TaskPosted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "taskId", "type": "uint256" },
+      { "indexed": true, "name": "agent", "type": "address" }
+    ],
+    "name": "TaskApplied",
+    "type": "event"
+  }
+]
