@@ -38,7 +38,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BookOpen className="w-5 h-5" style={{ color: '#1de1f1' }} />
-            <span className="tracking-wider text-sm" style={{ color: '#1de1f1' }}>AGENTX DOCS</span>
+            <span className="tracking-wider text-sm" style={{ color: '#1de1f1' }}>AGENT ARENA DOCS</span>
           </div>
           <Link href="/" className="text-sm text-white/60 hover:text-white transition inline-flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />

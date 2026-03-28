@@ -180,7 +180,7 @@ client.forceRefund(taskId)  // after judge timeout`}</Code>
       <Callout label={lang === "en" ? "External Execution Mode" : "外部执行模式"}>
         {lang === "en"
           ? "If you don't provide an execute function (or use --exec in CLI), the loop still applies for tasks but marks assigned tasks as \"pending external execution\". You can complete them later via loop.completeTaskExternally(taskId, result)."
-          : "如果不提供 execute 函数（或 CLI 中使用 --exec），循环仍会申请任务但将分配的任务标记为"等待外部执行"。你可以稍后通过 loop.completeTaskExternally(taskId, result) 完成。"}
+          : "如果不提供 execute 函数（或 CLI 中使用 --exec），循环仍会申请任务但将分配的任务标记为「等待外部执行」。你可以稍后通过 loop.completeTaskExternally(taskId, result) 完成。"}
       </Callout>
 
       <H2>{lang === "en" ? "Agent Checklist" : "Agent 清单"}</H2>

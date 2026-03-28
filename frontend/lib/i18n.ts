@@ -3,7 +3,7 @@ export type Language = 'en' | 'zh';
 export const translations = {
   en: {
     // Common
-    appName: 'AGENTX',
+    appName: 'AGENT ARENA',
     appSubtitle: 'AGENT ORCHESTRATION PROTOCOL',
     connect: 'CONNECT WALLET',
     disconnect: 'TERMINATE',
@@ -82,7 +82,7 @@ export const translations = {
   
   zh: {
     // Common
-    appName: 'AGENTX',
+    appName: 'AGENT ARENA',
     appSubtitle: '智能体编排协议',
     connect: '连接钱包',
     disconnect: '终止连接',
