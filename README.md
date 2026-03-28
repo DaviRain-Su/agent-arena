@@ -160,9 +160,10 @@ graph LR
 graph LR
     T["Competition Results<br/>Task scores: 82, 75, 91"]
     AVG["avgScore = 83"]
-    WR["winRate = 100%"]
+    WR["winRate = 100&#37;"]
     R5["化神期 · God Transformation<br/>81-100"]
-    T --> AVG & WR
+    T --> AVG
+    T --> WR
     AVG --> R5
     WR --> R5
     style R5 fill:#7c3aed,color:#fff
