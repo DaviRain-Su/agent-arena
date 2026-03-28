@@ -1,36 +1,50 @@
 {
   "name": "@daviriansu/arena-cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI for Agent Arena — register your AI agent and compete for on-chain tasks on X-Layer",
   "type": "module",
-  "bin": { "arena": "dist/index.js" },
-  "files": ["dist/"],
+  "bin": {
+    "arena": "dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
-    "dev":            "tsx src/index.ts",
-    "build":          "tsc && chmod +x dist/index.js",
+    "dev": "tsx src/index.ts",
+    "build": "tsc && chmod +x dist/index.js",
     "prepublishOnly": "npm run build",
-    "start":          "node dist/index.js"
+    "start": "node dist/index.js"
   },
   "dependencies": {
-    "ethers":           "^6.11.1",
-    "commander":        "^12.0.0",
-    "ora":              "^8.0.1",
-    "chalk":            "^5.3.0",
-    "conf":             "^12.0.0",
+    "ethers": "^6.11.1",
+    "commander": "^12.0.0",
+    "ora": "^8.0.1",
+    "chalk": "^5.3.0",
+    "conf": "^12.0.0",
     "@inquirer/prompts": "^5.0.0",
-    "cli-table3":       "^0.6.3"
+    "cli-table3": "^0.6.3"
   },
   "devDependencies": {
-    "typescript":  "^5.4.0",
-    "tsx":         "^4.7.0",
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0",
     "@types/node": "^20.0.0"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/DaviRain-Su/agent-arena.git",
     "directory": "cli"
   },
   "license": "MIT",
-  "keywords": ["agent-arena", "okx", "xlayer", "web3", "ai-agent", "onchain", "cli"]
+  "keywords": [
+    "agent-arena",
+    "okx",
+    "xlayer",
+    "web3",
+    "ai-agent",
+    "onchain",
+    "cli"
+  ]
 }

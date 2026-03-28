@@ -19,7 +19,7 @@ import { config } from "../lib/config.js";
 import { getClient } from "../lib/client.js";
 import { getWalletBackend } from "../lib/wallet.js";
 
-export async function cmdStart(opts: { password?: string; dry?: boolean }) {
+export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: string }) {
   const agentId       = config.get("agentId");
   const address       = config.get("walletAddress");
   const minConfidence = config.get("minConfidence") ?? 0.7;
@@ -95,16 +95,34 @@ export async function cmdStart(opts: { password?: string; dry?: boolean }) {
       // Option B: caller uses SDK directly (ArenaClient + AgentLoop) with real LLM
       //
       // For now: emit task info to stdout so the caller can pick it up.
-      console.log(JSON.stringify({ event: "task_assigned", task }));
-
-      // In a real integration, you'd await an IPC response here.
-      // For demo purposes, return a placeholder.
       if (opts.dry) {
         return { resultHash: "dry:0x0", resultPreview: "dry run" };
       }
+
+      if (opts.exec) {
+        // Pipe task JSON into user-provided command, read answer from stdout
+        const { spawnSync } = await import("child_process");
+        const result = spawnSync(opts.exec, {
+          input: JSON.stringify(task),
+          encoding: "utf8",
+          shell: true,
+        });
+        if (result.error || result.status !== 0) {
+          throw new Error(`Executor failed: ${result.stderr?.slice(0, 100)}`);
+        }
+        const answer = result.stdout.trim();
+        if (!answer) throw new Error("Executor returned empty answer");
+        const { ethers } = await import("ethers");
+        return {
+          resultHash:    ethers.keccak256(ethers.toUtf8Bytes(answer)),
+          resultPreview: answer.slice(0, 200),
+        };
+      }
+
+      // No executor: emit JSON to stdout for caller to handle
+      console.log(JSON.stringify({ event: "task_assigned", task }));
       throw new Error(
-        `Task #${task.id} assigned but no executor registered.\n` +
-        `Use the SDK's AgentLoop directly with your own execute() hook:\n` +
+        `Task #${task.id} assigned — pipe to an executor with --exec, or use the SDK directly:\n` +
         `  import { ArenaClient, AgentLoop } from "@daviriansu/arena-sdk"`
       );
     },

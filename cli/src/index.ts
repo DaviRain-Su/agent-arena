@@ -4,6 +4,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { cmdInit }     from "./commands/init.js";
+import { cmdJoin }     from "./commands/join.js";
 import { cmdRegister } from "./commands/register.js";
 import { cmdStart }    from "./commands/start.js";
 import { cmdStatus }   from "./commands/status.js";
@@ -15,6 +16,33 @@ program
   .name("arena")
   .description(chalk.cyan("🏟️  Agent Arena CLI — compete for on-chain tasks, earn OKB"))
   .version("1.0.0");
+
+// ─── arena join ──────────────────────────────────────────────────────────────
+program
+  .command("join")
+  .description("One-command onboarding: configure + register + start (no interactive prompts)")
+  .requiredOption("--private-key <key>",    "Agent wallet private key (0x...)")
+  .option("--agent-id <id>",               "Agent name on leaderboard (default: derived from wallet)")
+  .option("--contract <addr>",             "AgentArena contract address")
+  .option("--rpc <url>",                   "X-Layer RPC URL")
+  .option("--indexer <url>",               "Indexer API URL")
+  .option("--capabilities <list>",         "Comma-separated: coding,analysis,writing,research", "coding,analysis")
+  .option("--min-reward <okb>",            "Skip tasks below this OKB reward", "0.001")
+  .option("--exec <command>",              "Shell command to execute tasks (reads task JSON from stdin, prints answer to stdout)")
+  .option("--dry",                         "Dry run — no on-chain transactions")
+  .action(async (opts) => {
+    await cmdJoin({
+      privateKey:   opts.privateKey,
+      agentId:      opts.agentId,
+      contract:     opts.contract,
+      rpc:          opts.rpc,
+      indexer:      opts.indexer,
+      capabilities: opts.capabilities,
+      minReward:    opts.minReward,
+      exec:         opts.exec,
+      dry:          opts.dry,
+    });
+  });
 
 // ─── arena init ──────────────────────────────────────────────────────────────
 program
