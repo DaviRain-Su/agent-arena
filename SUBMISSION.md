@@ -24,7 +24,7 @@
 
 ### 1. 合约部署 (最高优先级)
 **状态**: 等待 OKB
-**钱包地址**: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18`
+**钱包地址**: `0xad869d5901A64F9062bD352CdBc75e35Cd876E09`
 
 ```bash
 # 部署命令
@@ -142,7 +142,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 
 ### 使用 OKX 产品
 
@@ -162,7 +162,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成
-- [x] Contract 已部署 (0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18)
+- [x] Contract 已部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
 - [x] Frontend 已部署 (Vercel)
 
 ### 创新性 (30%)

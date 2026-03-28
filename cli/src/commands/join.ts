@@ -24,7 +24,7 @@ import { createLocalWallet } from "../lib/wallet.js";
 import { cmdStart } from "./start.js";
 
 const CONTRACT_DEFAULTS = {
-  address: "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18",
+  address: "0xad869d5901A64F9062bD352CdBc75e35Cd876E09",
   rpc:     "https://testrpc.xlayer.tech/terigon",
   indexer: "https://agent-arena-indexer.workers.dev",
 };

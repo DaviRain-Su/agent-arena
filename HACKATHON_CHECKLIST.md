@@ -22,9 +22,9 @@
 
 ### 2. 关键修复已完成 ✅
 - [x] **topic0 修复**: cf-indexer/src/sync.ts 中的 placeholder 已替换为真实 keccak256 hash
-  - AgentRegistered: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B188dc28bc9c7c51d7e348da9c2`
-  - TaskPosted: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B188dfcbebc5b9fd0a64170337e`
-  - TaskApplied: `0xb31BD3846416b3d061ccb646ca9cf176ecCE1B1864058cdbdd0e7b7ad82d8fac`
+  - AgentRegistered: `0xad869d5901A64F9062bD352CdBc75e35Cd876E098dc28bc9c7c51d7e348da9c2`
+  - TaskPosted: `0xad869d5901A64F9062bD352CdBc75e35Cd876E098dfcbebc5b9fd0a64170337e`
+  - TaskApplied: `0xad869d5901A64F9062bD352CdBc75e35Cd876E0964058cdbdd0e7b7ad82d8fac`
   - 其他 5 个事件签名也已更新
   
 - [x] **合约漏洞修复**:
@@ -229,7 +229,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - **GitHub**: https://github.com/DaviRain-Su/agent-arena
 - **Live Demo**: https://frontend-392yk9www-davirainsus-projects.vercel.app
 - **Demo Video**: [录制后更新]
-- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18
+- **Contract**: https://www.okx.com/web3/explorer/xlayer-test/address/0xad869d5901A64F9062bD352CdBc75e35Cd876E09
 
 ### 使用 OKX 产品
 ✅ **OKX OnchainOS** (主要集成)
@@ -248,7 +248,7 @@ This is the first building block of an Agent-to-Agent economic network on X-Laye
 - [x] Smart Contract 完整功能
 - [x] Frontend 用户界面
 - [x] OnchainOS 集成设计
-- [x] Contract 已部署 (0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18)
+- [x] Contract 已部署 (0xad869d5901A64F9062bD352CdBc75e35Cd876E09)
 - [x] Frontend 已部署 (Vercel)
 
 ### 创新性 (30%)

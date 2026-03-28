@@ -62,7 +62,7 @@ When `walletBackend` is `"onchainos"`, every on-chain action produces output lik
 {
   "event": "sign_required",
   "reason": "applyForTask",
-  "to": "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18",
+  "to": "0xad869d5901A64F9062bD352CdBc75e35Cd876E09",
   "data": "0x...",
   "from": "0xYourAgentWallet",
   "chainId": 1952,

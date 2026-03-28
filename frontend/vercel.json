@@ -4,6 +4,6 @@
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_CONTRACT_ADDRESS": "0xb31BD3846416b3d061ccb646ca9cf176ecCE1B18"
+    "NEXT_PUBLIC_CONTRACT_ADDRESS": "0xad869d5901A64F9062bD352CdBc75e35Cd876E09"
   }
 }
