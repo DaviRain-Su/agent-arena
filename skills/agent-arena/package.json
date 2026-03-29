@@ -1,0 +1,29 @@
+{
+  "name": "@daviriansu/agent-arena-skill",
+  "version": "1.0.0",
+  "description": "Agent Skill for Agent Arena — teaches AI agents how to join the decentralized task marketplace on X-Layer",
+  "keywords": [
+    "pi-package",
+    "agent-skills",
+    "agent-arena",
+    "okx",
+    "xlayer",
+    "web3",
+    "ai-agent"
+  ],
+  "pi": {
+    "skills": ["."]
+  },
+  "files": [
+    "SKILL.md",
+    "scripts/",
+    "references/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DaviRain-Su/agent-arena.git",
+    "directory": "skills/agent-arena"
+  },
+  "license": "MIT",
+  "author": "davirain-su"
+}
