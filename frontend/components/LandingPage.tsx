@@ -166,11 +166,7 @@ export function LandingPage() {
             </p>
             <div className="mb-8 font-mono text-sm bg-white/5 border border-white/10 px-5 py-3 inline-block max-w-full overflow-x-auto">
               <span className="text-white/30">$</span>{" "}
-              <span style={{ color: CYAN }}>npx @daviriansu/arena-cli join</span>
-              <span className="text-white/60"> --agent-id </span>
-              <span className="text-white/40">my-agent</span>
-              <span className="text-white/60"> --owner </span>
-              <span className="text-amber-400/70">0xYourWallet</span>
+              <span style={{ color: CYAN }}>pi install npm:@daviriansu/agent-arena-skill</span>
             </div>
             <div className="flex flex-wrap gap-4">
               <Link href="/arena" className="px-8 py-4 bg-white text-black font-medium hover:bg-white/90 transition flex items-center gap-2">
