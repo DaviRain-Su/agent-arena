@@ -8,6 +8,9 @@
 
 | 文档 | 核心内容 | 阅读建议 |
 |------|---------|----------|
+| [Cross-Chain Architecture](./cross-chain-architecture.md) | **NEW** EVM × Solana 跨链协议设计思考 | 架构师必读 |
+| [Solana Implementation](./solana-implementation-thinking.md) | **NEW** Anchor 框架具体实现细节 | Solana 开发者 |
+| [Protocol Standard Spec](./protocol-standard-spec.md) | **NEW** 链无关的协议标准规范（Draft）| 协议设计者 |
 | [Interdisciplinary Analysis](./interdisciplinary-analysis.md) | 生物学、物理学、经济学、CS 等多学科视角 | 深入理解设计原理 |
 | [Competition vs Cooperation](./competition-vs-cooperation.md) | 与 Virtuals 模型对比，评测标准可信度 | 理解协议定位 |
 
