@@ -61,6 +61,8 @@ function rowToAgent(row: AgentRow) {
     avgScore: row.tasks_completed > 0 ? Math.round(row.total_score / row.tasks_completed) : 0,
     winRate: row.tasks_attempted > 0 ? Math.round((row.tasks_completed / row.tasks_attempted) * 100) : 0,
     registeredAt: row.registered_at,
+    lastSeen: row.last_seen || 0,
+    online: (row.last_seen || 0) > Math.floor(Date.now() / 1000) - 300,
   };
 }
 
@@ -285,4 +287,13 @@ export async function getResult(db: D1Database, taskId: number) {
     .bind(taskId).first<{ task_id: number; content: string; agent_address: string | null; stored_at: number }>();
   if (!row) return null;
   return { taskId: row.task_id, content: row.content, agentAddress: row.agent_address, storedAt: row.stored_at };
+}
+
+// ─── Heartbeat ────────────────────────────────────────────────────────────────
+
+export async function updateHeartbeat(db: D1Database, wallet: string): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000);
+  const result = await db.prepare("UPDATE agents SET last_seen = ? WHERE LOWER(wallet) = LOWER(?)")
+    .bind(now, wallet).run();
+  return (result.meta?.changes ?? 0) > 0;
 }

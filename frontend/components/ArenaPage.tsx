@@ -37,6 +37,8 @@ interface AgentInfo {
   tasksAttempted: number;
   avgScore: number;
   winRate: number;
+  online: boolean;
+  lastSeen: number;
 }
 
 function parseMetadata(raw: string): { capabilities: string[]; [k: string]: unknown } {
@@ -80,6 +82,7 @@ export function ArenaPage() {
   const [loading, setLoading] = useState(false);
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [showAllAgents, setShowAllAgents] = useState(false);
 
   const getReadContract = useCallback(() => {
     const rpc = new ethers.JsonRpcProvider("https://rpc.xlayer.tech", 196, { staticNetwork: true });
@@ -144,6 +147,8 @@ export function ArenaPage() {
             tasksAttempted: (a.tasksAttempted as number) || 0,
             avgScore: (a.avgScore as number) || 0,
             winRate: (a.winRate as number) || 0,
+            online: (a.online as boolean) || false,
+            lastSeen: (a.lastSeen as number) || 0,
           }));
         }
       } catch { /* indexer down */ }
@@ -159,6 +164,7 @@ export function ArenaPage() {
               wallet, owner: info.owner, agentId: info.agentId, metadata: info.metadata,
               capabilities: meta.capabilities, tasksCompleted: Number(rep.completed),
               tasksAttempted: Number(rep.attempted), avgScore: Number(rep.avgScore), winRate: Number(rep.winRate),
+              online: false, lastSeen: 0,
             });
           } catch { /* skip */ }
         }
@@ -223,7 +229,7 @@ export function ArenaPage() {
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: lang === "en" ? "Total Tasks" : "总任务数", value: tasks.length, icon: Zap },
-            { label: lang === "en" ? "Active Agents" : "活跃 Agent", value: agents.length, icon: Users },
+            { label: lang === "en" ? "Online Agents" : "在线 Agent", value: agents.filter(a => a.online).length, icon: Users },
             { label: lang === "en" ? "Completed" : "已完成", value: tasks.filter(t => t.status === 2).length, icon: CheckCircle },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="border border-white/10 p-5 bg-white/5">
@@ -382,9 +388,28 @@ export function ArenaPage() {
               <h2 className="text-xs text-white/40 uppercase tracking-[0.2em]">
                 {lang === "en" ? "Agent Leaderboard" : "Agent 排行榜"}
               </h2>
-              <span className="text-xs text-white/20">
-                {lang === "en" ? `${agents.length} agents` : `${agents.length} 个 Agent`}
-              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowAllAgents(!showAllAgents)}
+                  className="text-xs px-3 py-1 border transition"
+                  style={{
+                    borderColor: showAllAgents ? "rgba(255,255,255,0.2)" : `${CYAN}40`,
+                    color: showAllAgents ? "rgba(255,255,255,0.4)" : CYAN,
+                  }}
+                >
+                  {showAllAgents
+                    ? (lang === "en" ? "Show Online Only" : "仅显示在线")
+                    : (lang === "en" ? "Show All" : "显示全部")}
+                </button>
+                <span className="text-xs text-white/20">
+                  {(() => {
+                    const onlineCount = agents.filter(a => a.online).length;
+                    return lang === "en"
+                      ? `${onlineCount} online / ${agents.length} total`
+                      : `${onlineCount} 在线 / ${agents.length} 总计`;
+                  })()}
+                </span>
+              </div>
             </div>
 
             <div className="border border-white/10 divide-y divide-white/5">
@@ -398,6 +423,7 @@ export function ArenaPage() {
               </div>
 
               {[...agents]
+                .filter(a => showAllAgents || a.online)
                 .sort((a, b) => b.avgScore - a.avgScore)
                 .map((agent, i) => {
                   const realm = realmLabel(agent.avgScore);
@@ -419,15 +445,24 @@ export function ArenaPage() {
                         </div>
                         <div className="col-span-4 min-w-0">
                           <div className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ background: agent.online ? "#34d399" : "rgba(255,255,255,0.15)" }}
+                              title={agent.online
+                                ? (lang === "en" ? "Online" : "在线")
+                                : (lang === "en" ? "Offline" : "离线")}
+                            />
                             <Link
                               href={`/agent/${agent.wallet}`}
-                              className="text-sm font-medium text-white truncate hover:underline"
-                              style={{ textDecorationColor: CYAN }}
+                              className="text-sm font-medium truncate hover:underline"
+                              style={{
+                                textDecorationColor: CYAN,
+                                color: agent.online ? "white" : "rgba(255,255,255,0.4)",
+                              }}
                               onClick={e => e.stopPropagation()}
                             >
                               {agent.agentId}
                             </Link>
-
                           </div>
                           <Link
                             href={`/agent/${agent.wallet}`}

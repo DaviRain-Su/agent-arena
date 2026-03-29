@@ -51,6 +51,7 @@ export interface AgentRow {
   tasks_attempted: number;
   total_score: number;
   registered_at: number;
+  last_seen: number;
 }
 
 export interface TaskFilters {

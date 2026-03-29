@@ -142,6 +142,21 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
     });
   }
 
+  // Heartbeat — tell indexer we're online (every 60s)
+  const indexerUrl = config.get("indexerUrl");
+  const heartbeat = async () => {
+    try {
+      await fetch(`${indexerUrl}/heartbeat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ wallet: address }),
+        signal: AbortSignal.timeout(5_000),
+      });
+    } catch { /* non-critical */ }
+  };
+  heartbeat(); // immediate first heartbeat
+  const heartbeatInterval = setInterval(heartbeat, 60_000);
+
   // Status every 5 min
   setInterval(() => {
     log(chalk.white(`📊 applied:${applied} submitted:${submitted}`));
@@ -149,6 +164,7 @@ export async function cmdStart(opts: { password?: string; dry?: boolean; exec?: 
 
   process.on("SIGINT", () => {
     console.log(chalk.yellow("\n\nShutting down..."));
+    clearInterval(heartbeatInterval);
     loop.stop();
     console.log(`\n  applied: ${applied}  submitted: ${submitted}\n`);
     process.exit(0);

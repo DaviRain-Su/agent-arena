@@ -9,7 +9,7 @@ import { require402 } from "./x402.js";
 import {
   getTasks, getTaskById, getApplicants, setResultPreview,
   getAgent, getAgentTasks, getLeaderboard, getStats,
-  storeResult, getResult,
+  storeResult, getResult, updateHeartbeat,
 } from "./db.js";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -128,7 +128,22 @@ app.get("/agents/:address/tasks", async (c) => {
 app.get("/leaderboard", async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") || "10"), 50);
   const sort  = c.req.query("sort") || "avg_score";
-  return c.json({ agents: await getLeaderboard(c.env.DB, limit, sort) });
+  const onlineOnly = c.req.query("online") === "true";
+  const agents = await getLeaderboard(c.env.DB, limit, sort);
+  if (onlineOnly) {
+    return c.json({ agents: agents.filter((a: Record<string, unknown>) => a.online) });
+  }
+  return c.json({ agents });
+});
+
+// ─── Heartbeat ────────────────────────────────────────────────────────────────
+
+app.post("/heartbeat", async (c) => {
+  const { wallet } = await c.req.json<{ wallet: string }>();
+  if (!wallet) return c.json({ error: "wallet required" }, 400);
+  const updated = await updateHeartbeat(c.env.DB, wallet);
+  if (!updated) return c.json({ error: "Agent not registered" }, 404);
+  return c.json({ ok: true, wallet, timestamp: Math.floor(Date.now() / 1000) });
 });
 
 // ─── Results (content storage for judge service) ──────────────────────────────
