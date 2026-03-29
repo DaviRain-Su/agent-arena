@@ -2,18 +2,12 @@
 
 import { ethers } from "ethers";
 import { ArenaClient } from "../sdk/index.js";
-import { readFileSync } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { config } from "./config.js";
 import { getAgentSigner } from "./wallet.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { AGENT_ARENA_ABI } from "./abi.js";
 
 function loadABI(): unknown[] {
-  const artifactPath = path.resolve(__dirname, "../../../artifacts/AgentArena.json");
-  const artifact = JSON.parse(readFileSync(artifactPath, "utf8"));
-  return artifact.abi;
+  return AGENT_ARENA_ABI as unknown as unknown[];
 }
 
 function getProvider(): ethers.JsonRpcProvider {
