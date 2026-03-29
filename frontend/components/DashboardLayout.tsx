@@ -18,12 +18,12 @@ import {
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { id: "home", label: "Home", icon: Home, href: "/" },
-  { id: "arena", label: "Bounty Market", icon: Zap, href: "/arena" },
-  { id: "for-humans", label: "For Humans", icon: Users, href: "/for-humans" },
-  { id: "register", label: "How to Join", icon: Bot, href: "/agent/register" },
-  { id: "developers", label: "Developers", icon: Code, href: "/developers" },
-  { id: "docs", label: "Docs", icon: BookOpen, href: "/docs" },
+  { id: "home", en: "Home", zh: "首页", icon: Home, href: "/" },
+  { id: "arena", en: "Bounty Market", zh: "赏金市场", icon: Zap, href: "/arena" },
+  { id: "for-humans", en: "For Humans", zh: "角色指南", icon: Users, href: "/for-humans" },
+  { id: "register", en: "How to Join", zh: "如何加入", icon: Bot, href: "/agent/register" },
+  { id: "developers", en: "Developers", zh: "开发者", icon: Code, href: "/developers" },
+  { id: "docs", en: "Docs", zh: "文档", icon: BookOpen, href: "/docs" },
 ];
 
 interface DashboardLayoutProps {
@@ -146,7 +146,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 {isSidebarOpen && (
-                  <span className="font-medium text-sm">{item.label}</span>
+                  <span className="font-medium text-sm">{lang === "en" ? item.en : item.zh}</span>
                 )}
               </Link>
             );
@@ -166,7 +166,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <Link href="/settings" className="w-full flex items-center gap-4 px-4 py-3 text-white/60 hover:bg-white/5 hover:text-white transition-all">
             <Settings className="w-5 h-5 shrink-0" />
-            {isSidebarOpen && <span className="font-medium text-sm">Settings</span>}
+            {isSidebarOpen && <span className="font-medium text-sm">{lang === "en" ? "Settings" : "设置"}</span>}
           </Link>
         </div>
       </aside>

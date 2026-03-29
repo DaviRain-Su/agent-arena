@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { ethers } from "ethers";
 import { DashboardLayout } from "./DashboardLayout";
-import { useWeb3 } from "./Web3Provider";
 import Link from "next/link";
-import { Trophy, Zap, Users, ClipboardList, ArrowRight, Activity, Shield, Terminal } from "lucide-react";
+import { Trophy, Zap, Users, ClipboardList, Shield, Terminal } from "lucide-react";
 import { useLangStore } from "@/store/lang";
-import { getContract, CONTRACT_ADDRESS, shortenAddress } from "@/lib/contracts";
+import { getContract, CONTRACT_ADDRESS } from "@/lib/contracts";
 
 const CYAN = "#1de1f1";
 const RPC = "https://rpc.xlayer.tech";
@@ -20,19 +19,9 @@ interface PlatformStats {
   totalRewardsOKB: string;
 }
 
-interface MyAgentInfo {
-  agentId: string;
-  wallet: string;
-  avgScore: number;
-  completed: number;
-  winRate: number;
-}
-
 export function DashboardHome() {
-  const { address } = useWeb3();
   const { lang } = useLangStore();
   const [stats, setStats] = useState<PlatformStats | null>(null);
-  const [myAgents, setMyAgents] = useState<MyAgentInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -70,33 +59,12 @@ export function DashboardHome() {
           totalAgents: agentCount, totalRewardsOKB: parseFloat(ethers.formatEther(totalReward)).toFixed(4) });
       }
 
-      // Load user's agents from chain (only 2-3 calls, acceptable)
-      if (address) {
-        const rpc = new ethers.JsonRpcProvider(RPC);
-        const contract = getContract(rpc);
-        const agentInfos: MyAgentInfo[] = [];
-        try {
-          const owned: string[] = await contract.getMyAgents(address);
-          for (const w of owned) {
-            const [info, rep] = await Promise.all([contract.agents(w), contract.getAgentReputation(w)]);
-            agentInfos.push({ agentId: info.agentId, wallet: w, avgScore: Number(rep.avgScore),
-              completed: Number(rep.completed), winRate: Number(rep.winRate) });
-          }
-          const selfInfo = await contract.agents(address);
-          if (selfInfo.registered && !owned.some((w: string) => w.toLowerCase() === address.toLowerCase())) {
-            const selfRep = await contract.getAgentReputation(address);
-            agentInfos.unshift({ agentId: selfInfo.agentId, wallet: address, avgScore: Number(selfRep.avgScore),
-              completed: Number(selfRep.completed), winRate: Number(selfRep.winRate) });
-          }
-        } catch { /* no agents */ }
-        setMyAgents(agentInfos);
-      }
     } catch (e) {
       console.error("Dashboard load failed", e);
     } finally {
       setLoading(false);
     }
-  }, [address]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -143,31 +111,6 @@ export function DashboardHome() {
         {loading && (
           <div className="flex justify-center py-8">
             <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: CYAN }} />
-          </div>
-        )}
-
-        {/* My Agents */}
-        {myAgents.length > 0 && (
-          <div>
-            <h2 className="text-xs text-white/40 uppercase tracking-[0.2em] mb-3">
-              {lang === "en" ? "My Agents" : "我的 Agent"}
-            </h2>
-            <div className="border border-white/10 divide-y divide-white/5">
-              {myAgents.map((a) => (
-                <Link key={a.wallet} href={`/agent/${a.wallet}`} className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition">
-                  <div>
-                    <p className="text-sm text-white">{a.agentId}</p>
-                    <p className="text-xs font-mono text-white/30">{shortenAddress(a.wallet)}</p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-white/40">
-                    <span>{lang === "en" ? "Score" : "分"}: <span style={{ color: CYAN }}>{a.avgScore}</span></span>
-                    <span>{a.completed} {lang === "en" ? "tasks" : "个任务"}</span>
-                    <span>{a.winRate}%</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </div>
-                </Link>
-              ))}
-            </div>
           </div>
         )}
 
