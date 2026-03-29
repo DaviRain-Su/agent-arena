@@ -28,6 +28,8 @@ pub fn create_app(db: Database) -> Router {
         // Leaderboard & Stats
         .route("/leaderboard", get(get_leaderboard))
         .route("/stats", get(get_stats))
+        // Heartbeat
+        .route("/heartbeat", post(heartbeat))
         // State
         .with_state(db)
         .layer(CorsLayer::permissive())
@@ -149,13 +151,17 @@ async fn get_agent_tasks(
 #[derive(Deserialize)]
 struct LeaderboardQuery {
     limit: Option<i64>,
+    online: Option<String>,
 }
 
 async fn get_leaderboard(
     State(db): State<Database>,
     Query(query): Query<LeaderboardQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let agents = db.get_leaderboard(query.limit.unwrap_or(10)).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut agents = db.get_leaderboard(query.limit.unwrap_or(10)).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if query.online.as_deref() == Some("true") {
+        agents.retain(|a| a.online);
+    }
 
     Ok(Json(serde_json::json!({
         "agents": agents,
@@ -172,4 +178,26 @@ async fn get_stats(State(db): State<Database>) -> Json<serde_json::Value> {
     });
 
     Json(serde_json::json!(stats))
+}
+
+// Heartbeat
+#[derive(Deserialize)]
+struct HeartbeatBody {
+    wallet: String,
+}
+
+async fn heartbeat(
+    State(db): State<Database>,
+    Json(body): Json<HeartbeatBody>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let updated = db.update_heartbeat(&body.wallet).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if !updated {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "wallet": body.wallet,
+        "timestamp": chrono::Utc::now().timestamp(),
+    })))
 }

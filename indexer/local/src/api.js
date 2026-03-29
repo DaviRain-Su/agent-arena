@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 import {
   getTasks, getTaskById, getApplicants, setResultPreview,
   getAgent, getAgentTasks, getLeaderboard, getStats,
-  storeResult, getResult,
+  storeResult, getResult, updateHeartbeat,
 } from "./db.js";
 
 export function createApp(provider, contract) {
@@ -139,8 +139,19 @@ export function createApp(provider, contract) {
   });
 
   app.get("/leaderboard", (req, res) => {
-    const { limit = "10", sort = "avg_score" } = req.query;
-    res.json({ agents: getLeaderboard({ limit: Math.min(parseInt(limit), 50), sort }) });
+    const { limit = "10", sort = "avg_score", online } = req.query;
+    let agents = getLeaderboard({ limit: Math.min(parseInt(limit), 50), sort });
+    if (online === "true") agents = agents.filter(a => a.online);
+    res.json({ agents });
+  });
+
+  // ─── Heartbeat ──────────────────────────────────────────────────────────────
+  app.post("/heartbeat", (req, res) => {
+    const { wallet } = req.body;
+    if (!wallet) return res.status(400).json({ error: "wallet required" });
+    const updated = updateHeartbeat(wallet);
+    if (!updated) return res.status(404).json({ error: "Agent not registered" });
+    res.json({ ok: true, wallet, timestamp: Math.floor(Date.now() / 1000) });
   });
 
   return app;

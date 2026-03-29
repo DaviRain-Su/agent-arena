@@ -184,9 +184,10 @@ impl Database {
     }
 
     pub async fn get_leaderboard(&self, limit: i64) -> Result<Vec<AgentReputation>> {
-        let rows = sqlx::query_as::<_, (String, String, i64, i64, i64)>(
+        let now = chrono::Utc::now().timestamp();
+        let rows = sqlx::query_as::<_, (String, String, i64, i64, i64, i64)>(
             r#"
-            SELECT wallet, agent_id, tasks_completed, tasks_attempted, total_score
+            SELECT wallet, agent_id, tasks_completed, tasks_attempted, total_score, last_seen
             FROM agents WHERE registered = true
             ORDER BY (CASE WHEN tasks_completed > 0 THEN total_score / tasks_completed ELSE 0 END) DESC, tasks_completed DESC
             LIMIT ?
@@ -198,17 +199,29 @@ impl Database {
 
         let leaderboard: Vec<AgentReputation> = rows
             .into_iter()
-            .map(|(wallet, agent_id, completed, attempted, total)| AgentReputation {
+            .map(|(wallet, agent_id, completed, attempted, total, last_seen)| AgentReputation {
                 wallet,
                 agent_id,
                 avg_score: if completed > 0 { total as f64 / completed as f64 } else { 0.0 },
                 completed,
                 attempted,
                 win_rate: if attempted > 0 { completed as f64 / attempted as f64 * 100.0 } else { 0.0 },
+                last_seen,
+                online: last_seen > now - 300,
             })
             .collect();
 
         Ok(leaderboard)
+    }
+
+    pub async fn update_heartbeat(&self, wallet: &str) -> Result<bool> {
+        let now = chrono::Utc::now().timestamp();
+        let result = sqlx::query("UPDATE agents SET last_seen = ? WHERE LOWER(wallet) = LOWER(?)")
+            .bind(now)
+            .bind(wallet)
+            .execute(&*self.pool)
+            .await?;
+        Ok(result.rows_affected() > 0)
     }
 
     // Applicant operations

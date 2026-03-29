@@ -76,6 +76,7 @@ db.exec(`
 
 // ─── Migrations (safe to re-run) ──────────────────────────────────────────────
 try { db.exec("ALTER TABLE agents ADD COLUMN owner TEXT"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE agents ADD COLUMN last_seen INTEGER DEFAULT 0"); } catch { /* already exists */ }
 
 // ─── Sync State ──────────────────────────────────────────────────────────────
 
@@ -267,6 +268,8 @@ function formatAgent(row) {
     avgScore: row.tasks_completed > 0 ? Math.round(row.total_score / row.tasks_completed) : 0,
     winRate: row.tasks_attempted > 0 ? Math.round((row.tasks_completed / row.tasks_attempted) * 100) : 0,
     registeredAt: row.registered_at,
+    lastSeen: row.last_seen || 0,
+    online: (row.last_seen || 0) > Math.floor(Date.now() / 1000) - 300,
   };
 }
 
@@ -320,6 +323,17 @@ export function getStats() {
     totalRewardPaid: String(Number(BigInt(Math.round(row.total_paid_wei || 0))) / 1e18),
     avgScore: Math.round(row.avg_score || 0),
   };
+}
+
+// ─── Result Content ──────────────────────────────────────────────────────────
+
+// ─── Heartbeat ────────────────────────────────────────────────────────────────
+
+export function updateHeartbeat(wallet) {
+  const now = Math.floor(Date.now() / 1000);
+  const result = db.prepare("UPDATE agents SET last_seen = :now WHERE LOWER(wallet) = LOWER(:wallet)")
+    .run({ ':now': now, ':wallet': wallet });
+  return result.changes > 0;
 }
 
 // ─── Result Content ──────────────────────────────────────────────────────────

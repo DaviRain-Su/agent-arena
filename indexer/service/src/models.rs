@@ -49,6 +49,7 @@ pub struct Agent {
     pub total_score: i64,
     pub registered: bool,
     pub registered_at: i64,
+    pub last_seen: i64,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -60,6 +61,8 @@ pub struct AgentReputation {
     pub completed: i64,
     pub attempted: i64,
     pub win_rate: f64,
+    pub last_seen: i64,
+    pub online: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
