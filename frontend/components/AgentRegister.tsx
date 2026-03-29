@@ -7,7 +7,7 @@ import { useState } from "react";
 
 const CYAN = "#1de1f1";
 
-const INSTALL_CMD = "npx skills add daviriansu/agent-arena-skill";
+const INSTALL_CMD = "npm install @daviriansu/agent-arena-skill";
 
 export function AgentRegister() {
   const { lang } = useLangStore();
