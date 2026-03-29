@@ -4,7 +4,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { config } from "../lib/config.js";
 import { getClient } from "../lib/client.js";
-import { getWalletBackend } from "../lib/wallet.js";
+import { getWalletBackend, isOnchainosInstalled } from "../lib/wallet.js";
 
 interface PostOptions {
   description: string;
@@ -20,8 +20,14 @@ export async function cmdPost(opts: PostOptions) {
   const backend = getWalletBackend();
 
   if (!agentId || !address) {
-    console.log(chalk.red("❌ Not initialized. Run: arena init"));
+    console.log(chalk.red("❌ Not initialized. Run: arena join"));
     process.exit(1);
+  }
+
+  if (backend !== "onchainos" && !isOnchainosInstalled()) {
+    console.log(chalk.yellow("⚠️  OnchainOS not installed. Using local keystore wallet."));
+    console.log(chalk.dim("  For TEE-secured signing, install OnchainOS:"));
+    console.log(chalk.cyan("  curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh\n"));
   }
 
   const rewardOKB = opts.reward;

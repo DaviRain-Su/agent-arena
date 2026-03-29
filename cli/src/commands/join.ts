@@ -130,9 +130,88 @@ export async function cmdJoin(opts: {
         }
       }
     } else {
-      console.log(chalk.dim("  onchainos CLI not found. Install for TEE wallet security:"));
-      console.log(chalk.dim("  curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh\n"));
-      console.log(chalk.dim("  Falling back to local keystore wallet.\n"));
+      // OnchainOS not installed — prompt user to install
+      console.log(chalk.yellow("⚠️  OnchainOS CLI not found.\n"));
+      console.log(chalk.white("  OnchainOS provides a TEE-secured wallet where your private key"));
+      console.log(chalk.white("  never leaves the secure enclave. Recommended for production use.\n"));
+      console.log(chalk.dim("  Install command:"));
+      console.log(chalk.cyan("  curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh\n"));
+
+      const { confirm: confirmPrompt } = await import("@inquirer/prompts");
+      const shouldInstall = await confirmPrompt({
+        message: "Install OnchainOS now?",
+        default: true,
+      });
+
+      if (shouldInstall) {
+        const installSpinner = ora("Installing OnchainOS...").start();
+        try {
+          const { spawnSync: spawnInstall } = await import("child_process");
+          const installResult = spawnInstall("sh", ["-c", "curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh"], {
+            stdio: "inherit",
+            timeout: 120_000,
+          });
+
+          if (installResult.status === 0) {
+            installSpinner.succeed(chalk.green("OnchainOS installed!"));
+          } else {
+            installSpinner.fail(chalk.red("Installation may have failed"));
+          }
+
+          // Re-check after install
+          if (isOnchainosInstalled()) {
+            console.log(chalk.green("\n✔ onchainos CLI now available"));
+            // Re-enter the OnchainOS login flow
+            let status = getOnchainosStatus();
+            if (!status.loggedIn) {
+              console.log(chalk.dim("\n  OnchainOS Agentic Wallet requires login.\n"));
+              const { input } = await import("@inquirer/prompts");
+              const email = await input({
+                message: "Email address (for OnchainOS wallet login):",
+                validate: (v: string) => v.includes("@") ? true : "Enter a valid email",
+              });
+              const loginSpinner = ora("Sending verification code...").start();
+              const loginOk = onchainosLogin(email);
+              if (loginOk) {
+                loginSpinner.succeed(chalk.green(`Verification code sent to ${email}`));
+                const otp = await input({
+                  message: "Enter verification code from email:",
+                  validate: (v: string) => /^\d{6}$/.test(v) ? true : "Enter 6-digit code",
+                });
+                const verifySpinner = ora("Verifying...").start();
+                const verifyResult = onchainosVerify(otp);
+                if (verifyResult.ok) {
+                  verifySpinner.succeed(chalk.green(`Logged in as ${verifyResult.accountName || "wallet"}`));
+                  status = getOnchainosStatus();
+                } else {
+                  verifySpinner.fail(chalk.red("Verification failed"));
+                }
+              } else {
+                loginSpinner.fail(chalk.red("Failed to send verification code"));
+              }
+            }
+            if (status.loggedIn) {
+              const addr = getOnchainosAddress();
+              if (addr) {
+                agentAddress  = addr;
+                walletBackend = "onchainos";
+                useOnchainOS  = true;
+                console.log(chalk.green(`\n✔ OnchainOS Agentic Wallet: ${agentAddress}`));
+                console.log(chalk.dim("  Private key sealed in TEE secure enclave. Never exposed.\n"));
+              }
+            }
+          } else {
+            console.log(chalk.yellow("\n  onchainos not found in PATH after install."));
+            console.log(chalk.dim("  You may need to restart your terminal or run: source ~/.bashrc\n"));
+            console.log(chalk.yellow("  Falling back to local keystore wallet.\n"));
+          }
+        } catch (e: unknown) {
+          installSpinner.fail(chalk.red(`Installation failed: ${e instanceof Error ? e.message : String(e)}`));
+          console.log(chalk.yellow("\n  Falling back to local keystore wallet.\n"));
+        }
+      } else {
+        console.log(chalk.dim("\n  Skipping OnchainOS. Using local keystore wallet.\n"));
+      }
     }
   }
 

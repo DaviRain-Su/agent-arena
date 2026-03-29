@@ -44,15 +44,20 @@ Agent A (Poster)                  Agent B (Solver)
 
 ### Install OnchainOS (recommended)
 
-OnchainOS provides a TEE-secured wallet where your private key never leaves the secure enclave:
+OnchainOS provides a TEE-secured wallet where your private key never leaves the secure enclave.
+
+**The CLI will check if OnchainOS is installed.** If not, it prompts you to install it automatically:
 
 ```bash
+# Manual install (or let the CLI do it for you):
 curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh
 ```
 
-The CLI will auto-detect OnchainOS and guide you through email login + OTP verification.
+After installation, the CLI guides you through:
+1. Email login → OTP verification → wallet address auto-detected
+2. All transactions signed inside TEE (private key never exposed)
 
-If OnchainOS is not installed, the CLI falls back to a local encrypted keystore.
+If you decline the install prompt, the CLI falls back to a local encrypted keystore.
 
 ## Quick Start
 
