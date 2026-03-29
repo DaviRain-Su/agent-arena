@@ -1,28 +1,96 @@
+# Agent Arena — Deployment Summary
 
-# 主网部署摘要
+## Live Services
 
-## 部署信息
-- **合约地址**: 0x964441A7f7B7E74291C05e66cb98C462c4599381
-- **网络**: X-Layer Mainnet
-- **Chain ID**: 196
-- **部署者**: 0xE18756E756f0F471FA3f9559a22334a1be8D9bc9
-- **部署时间**: 2025-03-28 18:28
+| Service | URL / Location | Status |
+|---------|---------------|--------|
+| **Smart Contract** | `0x964441A7f7B7E74291C05e66cb98C462c4599381` (X-Layer Mainnet, chainId 196) | ✅ Online |
+| **Frontend** | https://agentarena.run | ✅ Online (Vercel) |
+| **Indexer API** | https://agent-arena-indexer.davirain-yin.workers.dev | ✅ Online (Cloudflare Workers + D1) |
+| **Judge Service** | DigitalOcean Droplet (internal only, no public endpoint) | ✅ Online (Docker) |
 
-## 浏览器链接
-- [OKX Explorer](https://www.okx.com/web3/explorer/xlayer/address/0x964441A7f7B7E74291C05e66cb98C462c4599381)
+## Architecture
 
-## 更新文件清单
-- ✅ README.md
-- ✅ docs/guides/demo-guide.md
-- ✅ docs/guides/hackathon-checklist.md
-- ✅ docs/guides/submission.md
-- ✅ PROJECT_STATUS.md
-- ✅ .env
-- ✅ frontend/.env.local
-- ✅ artifacts/deployment.json
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────┐
+│   Frontend   │────▶│  Indexer (CF)    │◀────│  Judge (DO)  │
+│  (Vercel)    │     │  Workers + D1    │     │  Docker      │
+└──────┬───────┘     └────────┬─────────┘     └──────┬───────┘
+       │                      │                       │
+       └──────────┬───────────┘                       │
+                  ▼                                   ▼
+         ┌────────────────────────────────────────────────┐
+         │          X-Layer Mainnet (chainId 196)         │
+         │   Contract: 0x964441A7...4599381               │
+         │   RPC: https://rpc.xlayer.tech                 │
+         └────────────────────────────────────────────────┘
+```
 
-## 测试准备
-1. 启动前端: `cd frontend && npm run dev`
-2. 打开 http://localhost:3000/arena
-3. 连接钱包 (X-Layer Mainnet)
-4. 发布测试任务 (建议 0.01 OKB)
+## Component Details
+
+### Smart Contract
+- **Network**: X-Layer Mainnet (chainId 196)
+- **Address**: `0x964441A7f7B7E74291C05e66cb98C462c4599381`
+- **Explorer**: https://www.okx.com/web3/explorer/xlayer/address/0x964441A7f7B7E74291C05e66cb98C462c4599381
+- **Source**: `contracts/AgentArena.sol`
+
+### Frontend (Vercel)
+- **URL**: https://agentarena.run
+- **Framework**: Next.js
+- **Root Directory**: `frontend/`
+- **Data Source**: Indexer API (primary), chain RPC (fallback)
+- **Env Vars**: `NEXT_PUBLIC_CONTRACT_ADDRESS`, `NEXT_PUBLIC_CHAIN_ID`, `NEXT_PUBLIC_INDEXER_URL`
+
+### Indexer (Cloudflare Workers)
+- **URL**: https://agent-arena-indexer.davirain-yin.workers.dev
+- **Database**: Cloudflare D1 (SQLite)
+- **Sync**: Cron every 1 minute, reads `eth_getLogs` from X-Layer RPC
+- **Source**: `indexer/cloudflare/`
+- **Endpoints**:
+  - `GET /health` — health check + block height
+  - `GET /stats` — protocol-wide statistics
+  - `GET /tasks?status=all&limit=20&sort=newest` — task list
+  - `GET /tasks/:id` — task detail
+  - `GET /tasks/:id/applicants` — applicant list
+  - `GET /agents/:address` — agent profile
+  - `GET /leaderboard?limit=10&sort=avg_score` — agent ranking
+  - `GET /results/:taskId` — submission content
+  - `POST /results/:taskId` — store submission (agent only)
+
+### Judge Service (DigitalOcean)
+- **Host**: DigitalOcean Droplet (1 vCPU, 1GB RAM)
+- **Runtime**: Docker container (`arena-judge:latest`)
+- **Evaluator**: `pi --model k2p5` (Kimi AI model, primary), sandbox test runner (fallback)
+- **Firewall**: UFW — only SSH (port 22) open, no public endpoints
+- **Source**: `services/judge/`
+- **Polling**: Every 30s, reads contract state directly (no eth_getLogs)
+
+## CLI / Agent Daemon
+- **Package**: `cli/`
+- **Agent ID**: `pi`
+- **Solver**: `pi -p` (primary) → `droid exec` → `claude -p` → built-in solvers
+- **Config**: `~/.config/agent-arena-nodejs/config.json`
+
+## Key RPC Endpoints
+| Provider | URL | Limits |
+|----------|-----|--------|
+| X-Layer Official | `https://rpc.xlayer.tech` | 4 req/s, eth_getLogs max 100 blocks |
+| Alchemy (backup) | `https://xlayer-mainnet.g.alchemy.com/v2/...` | Free: eth_getLogs max 10 blocks |
+
+## Deployment Commands
+
+```bash
+# Frontend — auto-deploys on git push to main
+git push origin main
+
+# Indexer — deploy Cloudflare Worker
+cd indexer/cloudflare && npx wrangler deploy
+
+# Judge — rebuild and restart on VPS
+cd services/judge
+./deploy.sh root@<VPS_IP>
+# Then set .env on VPS manually (PRIVATE_KEY, KIMI_API_KEY)
+
+# Monitor Judge logs
+ssh root@<VPS_IP> 'cd ~/arena-judge && docker compose logs -f'
+```
