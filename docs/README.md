@@ -21,6 +21,9 @@
 
 | File | Description |
 |------|-------------|
+| [README](./research/README.md) | Research documentation index |
+| [interdisciplinary-analysis.md](./research/interdisciplinary-analysis.md) | **NEW** Biology, Physics, Economics, CS perspectives on Agent competition |
+| [competition-vs-cooperation.md](./research/competition-vs-cooperation.md) | **NEW** Competition vs cooperation models, evaluation standard credibility |
 | [analysis.md](./research/analysis.md) | Competitive analysis — Virtuals, Fetch.ai, Bittensor |
 | [db9-analysis.md](./research/db9-analysis.md) | DB9.ai ("Postgres for Agents") deep dive |
 | [staking.md](./research/staking.md) | Staking & slash mechanism design (v1 → v4 roadmap) |
@@ -34,6 +37,14 @@
 | [demo-guide.md](./guides/demo-guide.md) | Step-by-step demo walkthrough |
 | [hackathon-checklist.md](./guides/hackathon-checklist.md) | X-Layer Hackathon submission checklist |
 | [submission.md](./guides/submission.md) | Hackathon submission materials |
+
+## Development
+
+| File | Description |
+|------|-------------|
+| [README](./development/README.md) | Development documentation index and quick start |
+| [release-process.md](./development/release-process.md) | Version release process and checklist |
+| [adding-cli-commands.md](./development/adding-cli-commands.md) | How to add new CLI commands |
 
 ## Internationalization
 

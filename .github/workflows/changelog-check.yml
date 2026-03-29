@@ -1,0 +1,74 @@
+name: Changelog Check
+
+on:
+  pull_request:
+    paths:
+      - '**/package.json'
+      - 'CHANGELOG.md'
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    name: Verify Changelog Updated
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check if version changed
+        id: version_check
+        run: |
+          # Check if any package.json was modified in this PR
+          if git diff --name-only origin/${{ github.base_ref }} | grep -q "package.json"; then
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+            echo "📦 Version change detected"
+          else
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+            echo "✅ No version change"
+          fi
+
+      - name: Verify CHANGELOG.md updated
+        if: steps.version_check.outputs.version_changed == 'true'
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }} | grep -q "CHANGELOG.md"; then
+            echo "✅ CHANGELOG.md has been updated"
+          else
+            echo "❌ ERROR: Version changed in package.json but CHANGELOG.md not updated!"
+            echo ""
+            echo "Please update CHANGELOG.md with your changes before merging:"
+            echo "1. Add a new version section at the top"
+            echo "2. Document your changes under Added/Changed/Fixed categories"
+            echo "3. See Keep a Changelog format: https://keepachangelog.com/"
+            exit 1
+          fi
+
+      - name: Validate CHANGELOG format
+        run: |
+          # Check if CHANGELOG.md follows the format
+          if ! grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            echo "❌ ERROR: CHANGELOG.md missing [Unreleased] section"
+            exit 1
+          fi
+          
+          if ! grep -q "### Added\|### Changed\|### Fixed\|### Removed" CHANGELOG.md; then
+            echo "⚠️  Warning: CHANGELOG.md may be missing proper categories"
+          fi
+          
+          echo "✅ CHANGELOG.md format looks good"
+
+      - name: Check version consistency
+        run: |
+          # Extract version from CLI package.json
+          CLI_VERSION=$(cat cli/package.json | grep '"version"' | head -1 | cut -d'"' -f4)
+          echo "CLI Version: $CLI_VERSION"
+          
+          # Check if version appears in CHANGELOG
+          if grep -q "\[$CLI_VERSION\]" CHANGELOG.md; then
+            echo "✅ Version $CLI_VERSION found in CHANGELOG"
+          else
+            echo "⚠️  Warning: Version $CLI_VERSION not found in CHANGELOG"
+          fi
