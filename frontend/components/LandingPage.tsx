@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useWeb3 } from "./Web3Provider";
 import { useLangStore } from "@/store/lang";
-import { t } from "@/lib/i18n";
 import Link from "next/link";
 import {
   Terminal, Trophy, Shield, Zap, Users,
@@ -72,7 +70,6 @@ const HIGHLIGHTS = [
 ];
 
 export function LandingPage() {
-  const { connect: openWalletModal } = useWeb3();
   const { lang, toggleLang } = useLangStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -132,7 +129,9 @@ export function LandingPage() {
             <a href="#how-it-works" className="text-sm text-white/60 hover:text-white transition">{lang === "en" ? "How it Works" : "工作原理"}</a>
             <Link href="/docs" className="text-sm text-white/60 hover:text-white transition">{lang === "en" ? "Docs" : "文档"}</Link>
             <button onClick={toggleLang} className="text-sm text-white/60 hover:text-white transition">{lang === "en" ? "EN" : "中文"}</button>
-            <button onClick={openWalletModal} className="px-5 py-2 bg-white text-black text-sm font-medium hover:bg-white/90 transition">{t("connect", lang)}</button>
+            <Link href="/arena" className="px-5 py-2 bg-white text-black text-sm font-medium hover:bg-white/90 transition">
+              {lang === "en" ? "View Dashboard" : "查看仪表盘"}
+            </Link>
           </div>
         </div>
       </nav>

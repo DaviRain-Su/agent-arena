@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
-import { useWeb3 } from "./Web3Provider";
 import { DashboardLayout } from "./DashboardLayout";
 import { getContract, formatOKB, shortenAddress, STATUS_LABELS, STATUS_LABELS_ZH } from "@/lib/contracts";
 import { useLangStore } from "@/store/lang";
 import {
-  Trophy, Clock, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal,
-  Tag, BookOpen
+  Trophy, Clock, CheckCircle,
+  ChevronDown, ChevronUp, Zap, Users, RefreshCw,
+  Tag, ExternalLink
 } from "lucide-react";
 import { ActivityFeed } from "./ActivityFeed";
 import Link from "next/link";
@@ -74,7 +73,6 @@ function parseTaskDescription(desc: string): { category: string | null; text: st
 }
 
 export function ArenaPage() {
-  const { address, provider } = useWeb3();
   const { lang } = useLangStore();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -84,10 +82,9 @@ export function ArenaPage() {
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   const getReadContract = useCallback(() => {
-    if (provider) return getContract(provider);
-    const fallback = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
-    return getContract(fallback);
-  }, [provider]);
+    const rpc = new ethers.JsonRpcProvider("https://rpc.xlayer.tech", 196, { staticNetwork: true });
+    return getContract(rpc);
+  }, []);
 
   const loadData = useCallback(async () => {
     const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
@@ -174,7 +171,7 @@ export function ArenaPage() {
     }
   }, [getReadContract]);
 
-  useEffect(() => { loadData(); }, [provider, loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
@@ -220,37 +217,6 @@ export function ArenaPage() {
           <button onClick={loadData} className="text-white/30 hover:text-white transition p-2">
             <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
           </button>
-        </div>
-
-        {/* Join banner */}
-        <div className="border border-white/10 bg-white/[0.03] p-6">
-          <div className="flex items-start gap-4">
-            <Terminal className="w-6 h-6 shrink-0 mt-1" style={{ color: CYAN }} />
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-white mb-2">
-                {lang === "en" ? "Join the Arena" : "加入竞技场"}
-              </h3>
-              <p className="text-white/50 text-sm mb-3">
-                {lang === "en"
-                  ? "Install the Agent Arena skill — your agent will understand the protocol and guide you through registration, task discovery, and competing for OKB rewards."
-                  : "安装 Agent Arena skill——你的智能体将理解协议并引导你完成注册、任务发现和竞争 OKB 奖励的全流程。"}
-              </p>
-              <div className="bg-black/40 border border-white/10 px-4 py-2.5 font-mono text-sm inline-block">
-                <span className="text-white/30">$ </span>
-                <span style={{ color: CYAN }}>pi install npm:@daviriansu/agent-arena-skill</span>
-              </div>
-              <div className="flex gap-4 mt-3">
-                <Link href="/developers" className="text-xs flex items-center gap-1 hover:text-white transition" style={{ color: CYAN }}>
-                  <BookOpen className="w-3 h-3" />
-                  {lang === "en" ? "Developer Docs" : "开发者文档"}
-                </Link>
-                <Link href="/agent/register" className="text-xs flex items-center gap-1 text-white/40 hover:text-white transition">
-                  <Users className="w-3 h-3" />
-                  {lang === "en" ? "How to Register" : "如何注册"}
-                </Link>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Stats */}
@@ -372,15 +338,17 @@ export function ArenaPage() {
                           {task.assignedAgent && task.assignedAgent !== ethers.ZeroAddress && (
                             <div className="border border-white/10 p-3">
                               <p className="text-white/30 mb-1">{lang === "en" ? "Assigned To" : "执行者"}</p>
-                              <p className="font-mono text-white/60">{shortenAddress(task.assignedAgent)}</p>
+                              <Link href={`/agent/${task.assignedAgent}`} className="font-mono text-white/60 hover:text-white transition flex items-center gap-1">
+                                {shortenAddress(task.assignedAgent)} <ExternalLink className="w-2.5 h-2.5" />
+                              </Link>
                             </div>
                           )}
                           {task.winner && task.winner !== ethers.ZeroAddress && (
                             <div className="border border-white/10 p-3">
                               <p className="text-white/30 mb-1">{lang === "en" ? "Winner" : "获胜者"}</p>
-                              <p className="font-mono flex items-center gap-1" style={{ color: CYAN }}>
-                                <Trophy className="w-3 h-3" />{shortenAddress(task.winner)}
-                              </p>
+                              <Link href={`/agent/${task.winner}`} className="font-mono flex items-center gap-1 hover:opacity-80 transition" style={{ color: CYAN }}>
+                                <Trophy className="w-3 h-3" />{shortenAddress(task.winner)} <ExternalLink className="w-2.5 h-2.5" />
+                              </Link>
                             </div>
                           )}
                         </div>
@@ -433,7 +401,6 @@ export function ArenaPage() {
                 .sort((a, b) => b.avgScore - a.avgScore)
                 .map((agent, i) => {
                   const realm = realmLabel(agent.avgScore);
-                  const isMe = agent.wallet.toLowerCase() === address?.toLowerCase();
                   const isExpanded = expandedAgent === agent.wallet;
                   const rankColor = i === 0 ? "#fbbf24" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : "rgba(255,255,255,0.2)";
                   const rankEmoji = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
@@ -444,8 +411,7 @@ export function ArenaPage() {
                         className="grid grid-cols-12 gap-2 px-4 py-3 items-center transition cursor-pointer hover:bg-white/[0.03]"
                         onClick={() => setExpandedAgent(isExpanded ? null : agent.wallet)}
                         style={{
-                          background: isMe ? `${CYAN}08` : "transparent",
-                          borderLeft: isMe ? `2px solid ${CYAN}` : "2px solid transparent",
+                          borderLeft: "2px solid transparent",
                         }}
                       >
                         <div className="col-span-1 text-center text-sm font-light" style={{ color: rankColor }}>
@@ -453,14 +419,23 @@ export function ArenaPage() {
                         </div>
                         <div className="col-span-4 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-white truncate">{agent.agentId}</p>
-                            {isMe && (
-                              <span className="text-xs px-1.5 py-0.5 shrink-0" style={{ background: `${CYAN}20`, color: CYAN }}>
-                                {lang === "en" ? "YOU" : "我"}
-                              </span>
-                            )}
+                            <Link
+                              href={`/agent/${agent.wallet}`}
+                              className="text-sm font-medium text-white truncate hover:underline"
+                              style={{ textDecorationColor: CYAN }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              {agent.agentId}
+                            </Link>
+
                           </div>
-                          <p className="text-xs text-white/30 font-mono">{shortenAddress(agent.wallet)}</p>
+                          <Link
+                            href={`/agent/${agent.wallet}`}
+                            className="text-xs text-white/30 font-mono hover:text-white/50 transition"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {shortenAddress(agent.wallet)}
+                          </Link>
                         </div>
                         <div className="col-span-2 text-center">
                           <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${realm.color}40`, color: realm.color }}>
