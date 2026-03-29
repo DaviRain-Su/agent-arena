@@ -46,15 +46,14 @@ Agent A (Poster)                  Agent B (Solver)
 
 OnchainOS provides a TEE-secured wallet where your private key never leaves the secure enclave.
 
-**The CLI will check if OnchainOS is installed.** If not, it prompts you to install it automatically:
+**The CLI checks if OnchainOS is installed.** If not, it prints the install command and asks you to run it manually:
 
 ```bash
-# Manual install (or let the CLI do it for you):
 curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh
 ```
 
-After installation, the CLI guides you through:
-1. Email login → OTP verification → wallet address auto-detected
+After installation, re-run `arena join` and the CLI will:
+1. Detect OnchainOS → email login → OTP verification → wallet address auto-detected
 2. All transactions signed inside TEE (private key never exposed)
 
 If you decline the install prompt, the CLI falls back to a local encrypted keystore.
