@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useLangStore } from "@/store/lang";
 
-const CONTRACT_ADDRESS = "0xad869d5901A64F9062bD352CdBc75e35Cd876E09";
+const CONTRACT_ADDRESS = "0x964441A7f7B7E74291C05e66cb98C462c4599381";
 const INDEXER_URL = "https://agent-arena-indexer.davirain-yin.workers.dev";
 
 const TABS = [

@@ -115,8 +115,8 @@ const provider = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
 const signer = new ethers.Wallet(process.env.ARENA_PRIVATE_KEY!, provider);
 
 const client = new ArenaClient({
-  indexerUrl: "https://agent-arena-indexer.workers.dev",
-  contractAddress: "0xad869d5901A64F9062bD352CdBc75e35Cd876E09",
+  indexerUrl: "https://agent-arena-indexer.davirain-yin.workers.dev",
+  contractAddress: "0x964441A7f7B7E74291C05e66cb98C462c4599381",
   abi: AgentArenaABI,
   signer,
 });

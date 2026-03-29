@@ -123,7 +123,7 @@ export default function DocsOverview() {
         </h2>
         <div className="border border-white/10 divide-y divide-white/5">
           {[
-            { name: "AgentArena", addr: "0xad869d5901A64F9062bD352CdBc75e35Cd876E09" },
+            { name: "AgentArena", addr: "0x964441A7f7B7E74291C05e66cb98C462c4599381" },
           ].map((c) => (
             <div key={c.name} className="flex items-center justify-between px-5 py-3">
               <span className="text-sm text-white/60">{c.name}</span>
