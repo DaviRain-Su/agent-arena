@@ -1,14 +1,15 @@
 // src/commands/register.ts — Register agent on-chain
 
-import { password } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
 import { config } from "../lib/config.js";
 import { getClient } from "../lib/client.js";
+import { getWalletBackend } from "../lib/wallet.js";
 
 export async function cmdRegister() {
   const agentId = config.get("agentId");
   const address = config.get("walletAddress");
+  const backend = getWalletBackend();
 
   if (!agentId || !address) {
     console.log(chalk.red("❌ Not initialized. Run: arena init"));
@@ -16,9 +17,13 @@ export async function cmdRegister() {
   }
 
   console.log(chalk.cyan.bold(`\n🏟️  Registering Agent: ${agentId}`));
-  console.log(chalk.dim(`   Wallet: ${address}\n`));
+  console.log(chalk.dim(`   Wallet: ${address} ${backend === "onchainos" ? "[OnchainOS TEE]" : "[local keystore]"}\n`));
 
-  const pwd = process.env.ARENA_PASSWORD || await password({ message: "Wallet password:" });
+  let pwd: string | undefined;
+  if (backend !== "onchainos") {
+    const { password } = await import("@inquirer/prompts");
+    pwd = process.env.ARENA_PASSWORD || await password({ message: "Wallet password:" });
+  }
 
   const spinner = ora("Checking registration status...").start();
   try {
