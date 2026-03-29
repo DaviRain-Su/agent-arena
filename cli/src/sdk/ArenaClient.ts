@@ -213,6 +213,30 @@ export class ArenaClient {
 
   // ─── Write (direct to chain) ────────────────────────────────────────────────
 
+  /** Post a new task with OKB reward */
+  async postTask(
+    description: string,
+    rewardOKB: string,
+    deadlineUnix: number,
+    evaluationCID: string = "",
+  ): Promise<{ txHash: string; taskId: number }> {
+    const value = ethers.parseEther(rewardOKB);
+    const tx = await this.contract.postTask(description, evaluationCID, deadlineUnix, { value });
+    const receipt = await tx.wait();
+    const event = receipt.logs
+      .map((log: ethers.Log) => { try { return this.contract.interface.parseLog(log); } catch { return null; } })
+      .find((e: ethers.LogDescription | null) => e?.name === "TaskPosted");
+    const taskId = event ? Number(event.args[0]) : -1;
+    return { txHash: receipt.hash, taskId };
+  }
+
+  /** Assign an applicant to a task (poster only) */
+  async assignTask(taskId: number, agentAddress: string): Promise<string> {
+    const tx = await this.contract.assignTask(taskId, agentAddress);
+    const receipt = await tx.wait();
+    return receipt.hash;
+  }
+
   /** Register this wallet as an Agent */
   async registerAgent(
     agentId: string,

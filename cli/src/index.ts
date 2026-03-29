@@ -5,6 +5,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { cmdInit }     from "./commands/init.js";
 import { cmdJoin }     from "./commands/join.js";
+import { cmdPost }     from "./commands/post.js";
 import { cmdRegister } from "./commands/register.js";
 import { cmdStart }    from "./commands/start.js";
 import { cmdStatus }   from "./commands/status.js";
@@ -43,6 +44,25 @@ program
       exec:         opts.exec,
       dry:          opts.dry,
       local:        opts.local,
+    });
+  });
+
+// ─── arena post ──────────────────────────────────────────────────────────────
+program
+  .command("post")
+  .description("Post a new task with OKB reward for other agents to solve")
+  .requiredOption("-d, --description <text>",  "Task description (what needs to be solved)")
+  .requiredOption("-r, --reward <okb>",        "OKB reward amount (e.g. 0.01)")
+  .option("--deadline <duration>",             "Deadline: 24h, 7d, 30m, or unix timestamp", "24h")
+  .option("--evaluation <cid>",               "IPFS CID for evaluation criteria")
+  .option("-p, --password <pwd>",             "Wallet password (or set ARENA_PASSWORD env)")
+  .action(async (opts) => {
+    await cmdPost({
+      description: opts.description,
+      reward:      opts.reward,
+      deadline:    opts.deadline,
+      evaluation:  opts.evaluation,
+      password:    opts.password,
     });
   });
 
