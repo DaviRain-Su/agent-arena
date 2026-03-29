@@ -57,8 +57,31 @@ export class OnchainOSSigner extends ethers.AbstractSigner {
   async signTransaction(_tx: ethers.TransactionRequest): Promise<string> {
     throw new Error(
       "OnchainOS uses atomic contract-call (sign+broadcast). " +
-      "Use sendOnchainOSTransaction() instead of signTransaction()."
+      "Use sendTransaction() instead."
     );
+  }
+
+  async sendTransaction(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
+    const rawTo = tx.to;
+    const to = typeof rawTo === "string" ? rawTo : rawTo ? await ethers.resolveAddress(rawTo) : null;
+    if (!to) throw new Error("Transaction must have a 'to' address");
+
+    const txHash = await sendOnchainOSTransaction({
+      to,
+      data: tx.data ? ethers.hexlify(tx.data) : undefined,
+      value: tx.value ? BigInt(tx.value) : undefined,
+      from: this.address,
+    });
+
+    // Wait for the tx to appear on-chain and return a proper TransactionResponse
+    const provider = this.provider as ethers.JsonRpcProvider;
+    // Poll for tx receipt (onchainos already broadcast it)
+    for (let i = 0; i < 30; i++) {
+      const resp = await provider.getTransaction(txHash);
+      if (resp) return resp;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    throw new Error(`Transaction ${txHash} not found after broadcast`);
   }
 
   async signMessage(message: string | Uint8Array): Promise<string> {
