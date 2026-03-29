@@ -7,11 +7,12 @@ import { DashboardLayout } from "./DashboardLayout";
 import { getContract, formatOKB, shortenAddress, STATUS_LABELS, STATUS_LABELS_ZH } from "@/lib/contracts";
 import { useLangStore } from "@/store/lang";
 import {
-  Plus, Trophy, Clock, CheckCircle, XCircle,
+  Trophy, Clock, CheckCircle, XCircle,
   ChevronDown, ChevronUp, Zap, Users, RefreshCw, Terminal,
-  Tag, Loader2, Copy, Check
+  Tag, BookOpen
 } from "lucide-react";
 import { ActivityFeed } from "./ActivityFeed";
+import Link from "next/link";
 
 interface Task {
   id: number;
@@ -25,7 +26,6 @@ interface Task {
   resultHash: string;
   score: number;
   winner: string;
-  applicants: string[];
 }
 
 interface AgentInfo {
@@ -60,14 +60,11 @@ const TASK_CATEGORIES = [
   { id: "other",    en: "Other",     zh: "其他",   color: "rgba(255,255,255,0.4)" },
 ] as const;
 
-type CategoryId = typeof TASK_CATEGORIES[number]["id"];
-
 function getCategoryInfo(id: string) {
   return TASK_CATEGORIES.find(c => c.id === id) ?? TASK_CATEGORIES[TASK_CATEGORIES.length - 1];
 }
 
-/** Parses "[category] rest of description" → { category, text } */
-function parseTaskDescription(desc: string): { category: CategoryId | null; text: string } {
+function parseTaskDescription(desc: string): { category: string | null; text: string } {
   const m = desc.match(/^\[([a-z]+)\]\s*([\s\S]*)$/);
   if (m) {
     const cat = TASK_CATEGORIES.find(c => c.id === m[1]);
@@ -77,7 +74,7 @@ function parseTaskDescription(desc: string): { category: CategoryId | null; text
 }
 
 export function ArenaPage() {
-  const { address, signer, provider, isConnected, connect, switchToXLayer, chainId } = useWeb3();
+  const { address, provider } = useWeb3();
   const { lang } = useLangStore();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -86,52 +83,18 @@ export function ArenaPage() {
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
-  // Post task form
-  const [showPostForm, setShowPostForm] = useState(false);
-  const [taskDesc, setTaskDesc] = useState("");
-  const [rewardOKB, setRewardOKB] = useState("0.01");
-  const [deadlineHours, setDeadlineHours] = useState("24");
-  const [posting, setPosting] = useState(false);
-
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [applyingTaskId, setApplyingTaskId] = useState<number | null>(null);
-  const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
-  const [copiedCmd, setCopiedCmd] = useState(false);
-  const [resultContents, setResultContents] = useState<Record<number, string | null>>({});
-  const [loadingResult, setLoadingResult] = useState<number | null>(null);
-
-  // My Agent reputation state
-  const [myReputation, setMyReputation] = useState<{
-    avgScore: number;
-    completed: number;
-    attempted: number;
-    winRate: number;
-  } | null>(null);
-  const [myAgentId, setMyAgentId] = useState<string>("");
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [judgeAddress, setJudgeAddress] = useState<string>("");
-  const [judgeForm, setJudgeForm] = useState<{ taskId: number; score: number } | null>(null);
-
-  // Public RPC fallback — readable even without wallet
   const getReadContract = useCallback(() => {
     if (provider) return getContract(provider);
     const fallback = new ethers.JsonRpcProvider("https://rpc.xlayer.tech");
     return getContract(fallback);
   }, [provider]);
 
-  const getWriteContract = useCallback(() => {
-    if (!signer) return null;
-    return getContract(signer);
-  }, [signer]);
-
   const loadData = useCallback(async () => {
     const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
     const contract = getReadContract();
     setLoading(true);
     try {
-      // Load tasks — Indexer first (1 request), fallback to chain
-      let loadedTasks: typeof tasks = [];
+      let loadedTasks: Task[] = [];
       try {
         const res = await fetch(`${indexerUrl}/tasks?status=all&limit=20&sort=newest`);
         if (res.ok) {
@@ -148,31 +111,28 @@ export function ArenaPage() {
             resultHash: (t as Record<string, unknown>).resultHash as string || "",
             score: (t as Record<string, unknown>).score as number || 0,
             winner: (t as Record<string, unknown>).winner as string || ethers.ZeroAddress,
-            applicants: [],
           }));
         }
-      } catch { /* indexer down, fallback below */ }
+      } catch { /* indexer down */ }
 
       if (loadedTasks.length === 0) {
-        // Fallback: read from chain sequentially (respects rate limit)
         const taskCount = Number(await contract.taskCount());
         for (let i = 0; i < Math.min(taskCount, 20); i++) {
           try {
-            const [t, applicants] = await Promise.all([contract.tasks(i), contract.getApplicants(i)]);
+            const t = await contract.tasks(i);
             loadedTasks.push({
               id: i, poster: t.poster, description: t.description, reward: t.reward,
               deadline: Number(t.deadline), judgeDeadline: Number(t.judgeDeadline),
               status: Number(t.status), assignedAgent: t.assignedAgent,
-              resultHash: t.resultHash, score: Number(t.score), winner: t.winner, applicants,
+              resultHash: t.resultHash, score: Number(t.score), winner: t.winner,
             });
-          } catch { /* skip individual task failures */ }
+          } catch { /* skip */ }
         }
         loadedTasks.reverse();
       }
       setTasks(loadedTasks);
 
-      // Load agents — Indexer first, fallback to chain
-      let loadedAgents: typeof agents = [];
+      let loadedAgents: AgentInfo[] = [];
       try {
         const res = await fetch(`${indexerUrl}/leaderboard?limit=20`);
         if (res.ok) {
@@ -207,41 +167,15 @@ export function ArenaPage() {
         }
       }
       setAgents(loadedAgents);
-
-      // Judge address — single RPC call, fine
-      try {
-        const judgeAddr = await contract.judgeAddress();
-        setJudgeAddress(judgeAddr.toLowerCase());
-      } catch { /* skip */ }
-
-      // Check if current user is registered
-      if (address) {
-        try {
-          const myInfo = await contract.agents(address);
-          setIsRegistered(myInfo.registered);
-          setMyAgentId(myInfo.agentId || "");
-          if (myInfo.registered) {
-            const rep = await contract.getAgentReputation(address);
-            setMyReputation({
-              avgScore: Number(rep.avgScore), completed: Number(rep.completed),
-              attempted: Number(rep.attempted), winRate: Number(rep.winRate),
-            });
-          }
-        } catch { /* skip */ }
-      }
     } catch (e) {
       console.error("Load failed", e);
     } finally {
       setLoading(false);
     }
-  }, [getReadContract, address]);
+  }, [getReadContract]);
 
-  // Load on mount (no wallet needed) and re-load when wallet connects
-  useEffect(() => {
-    loadData();
-  }, [provider, loadData]);
+  useEffect(() => { loadData(); }, [provider, loadData]);
 
-  // Poll for updates (X-Layer RPC doesn't support eth_newFilter)
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
   useEffect(() => {
@@ -249,169 +183,6 @@ export function ArenaPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Auto-dismiss notifications after 8s
-  useEffect(() => {
-    if (!txHash) return;
-    const id = setTimeout(() => setTxHash(null), 8_000);
-    return () => clearTimeout(id);
-  }, [txHash]);
-  useEffect(() => {
-    if (!errorMsg) return;
-    const id = setTimeout(() => setErrorMsg(null), 10_000);
-    return () => clearTimeout(id);
-  }, [errorMsg]);
-
-  // Post task form state
-  const [evalType, setEvalType] = useState<"manual" | "test_cases" | "judge_prompt">("manual");
-  const [evalPrompt, setEvalPrompt] = useState("");
-  const [taskCategory, setTaskCategory] = useState<CategoryId>("coding");
-
-  const postTask = async () => {
-    const contract = getWriteContract();
-    if (!contract || !taskDesc || !rewardOKB) return;
-    setPosting(true);
-    try {
-      const deadline = Math.floor(Date.now() / 1000) + Number(deadlineHours) * 3600;
-      const reward = ethers.parseEther(rewardOKB);
-      // Build evaluation standard CID (simplified: JSON hash as placeholder)
-      const evalStandard = evalType === "judge_prompt"
-        ? JSON.stringify({ type: "judge_prompt", prompt: evalPrompt || "Evaluate quality and correctness." })
-        : JSON.stringify({ type: evalType });
-      const evalCID = `eval:${btoa(evalStandard)}`;
-      const descWithCategory = `[${taskCategory}] ${taskDesc}`;
-      const tx = await contract.postTask(descWithCategory, evalCID, deadline, { value: reward });
-      setTxHash(tx.hash);
-      await tx.wait();
-      setShowPostForm(false);
-      setTaskDesc(""); setRewardOKB("0.01"); setEvalType("manual"); setEvalPrompt(""); setTaskCategory("coding");
-      await loadData();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Post failed: ${msg.slice(0, 100)}`);
-      console.error("Post failed", e);
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  const applyForTask = async (taskId: number) => {
-    const contract = getWriteContract();
-    if (!contract) return;
-    setApplyingTaskId(taskId);
-    try {
-      const tx = await contract.applyForTask(taskId);
-      setTxHash(tx.hash);
-      await tx.wait();
-      await loadData();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Apply failed: ${msg.slice(0, 120)}`);
-      console.error("Apply failed", e);
-    } finally {
-      setApplyingTaskId(null);
-    }
-  };
-
-  const assignTask = async (taskId: number, agentAddress: string) => {
-    const contract = getWriteContract();
-    if (!contract) return;
-    setAssigningTaskId(taskId);
-    try {
-      const tx = await contract.assignTask(taskId, agentAddress);
-      setTxHash(tx.hash);
-      await tx.wait();
-      await loadData();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Assign failed: ${msg.slice(0, 120)}`);
-      console.error("Assign failed", e);
-    } finally {
-      setAssigningTaskId(null);
-    }
-  };
-
-  const [submitResult, setSubmitResultState] = useState<{ taskId: number; result: string } | null>(null);
-
-  const doSubmitResult = async (taskId: number, result: string) => {
-    const contract = getWriteContract();
-    if (!contract || !result) return;
-    try {
-      const resultHash = ethers.keccak256(ethers.toUtf8Bytes(result));
-      const tx = await contract.submitResult(taskId, resultHash);
-      setTxHash(tx.hash);
-      await tx.wait();
-      setSubmitResultState(null);
-      await loadData();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(`Submit failed: ${msg.slice(0, 100)}`);
-      console.error("Submit failed", e);
-    }
-  };
-
-  const doJudgeAndPay = async (taskId: number, score: number, winner: string) => {
-    const contract = getWriteContract();
-    if (!contract) return;
-    try {
-      const report = { taskId, score, winner, judge: address, timestamp: Date.now() };
-      const reasonURI = `data:application/json;base64,${btoa(JSON.stringify(report))}`;
-      const tx = await contract.judgeAndPay(taskId, score, winner, reasonURI);
-      setTxHash(tx.hash);
-      await tx.wait();
-      setJudgeForm(null);
-      await loadData();
-    } catch (e) {
-      console.error("Judge failed", e);
-    }
-  };
-
-  const doRefundExpired = async (taskId: number) => {
-    const contract = getWriteContract();
-    if (!contract) return;
-    try {
-      const tx = await contract.refundExpired(taskId);
-      setTxHash(tx.hash);
-      await tx.wait();
-      await loadData();
-    } catch (e) {
-      console.error("Refund failed", e);
-    }
-  };
-
-  const doForceRefund = async (taskId: number) => {
-    const contract = getWriteContract();
-    if (!contract) return;
-    try {
-      const tx = await contract.forceRefund(taskId);
-      setTxHash(tx.hash);
-      await tx.wait();
-      await loadData();
-    } catch (e) {
-      console.error("Force refund failed", e);
-    }
-  };
-
-  const fetchResultContent = async (taskId: number) => {
-    const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "https://agent-arena-indexer.davirain-yin.workers.dev";
-    setLoadingResult(taskId);
-    try {
-      const res = await fetch(`${indexerUrl}/results/${taskId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setResultContents(prev => ({ ...prev, [taskId]: data.content || null }));
-      } else {
-        setResultContents(prev => ({ ...prev, [taskId]: null }));
-      }
-    } catch {
-      setResultContents(prev => ({ ...prev, [taskId]: null }));
-    } finally {
-      setLoadingResult(null);
-    }
-  };
-
-  const wrongNetwork = isConnected && chainId !== 196; // X-Layer Mainnet
-
-  // 修仙境界 — 信誉等级
   const realmLabel = (score: number) => {
     if (score >= 81) return { zh: "化神期", en: "Void Refinement", color: "#f59e0b" };
     if (score >= 61) return { zh: "元婴期", en: "Nascent Soul",    color: CYAN };
@@ -442,8 +213,8 @@ export function ArenaPage() {
             </h1>
             <p className="text-white/40 text-sm mt-2">
               {lang === "en"
-                ? "Post a bounty · AI Agents compete · Best result wins OKB"
-                : "发布赏金 · AI Agent 竞争 · 最优结果自动获奖"}
+                ? "AI Agents compete for on-chain bounties. All tasks posted and executed via CLI."
+                : "AI Agent 竞争链上赏金。所有任务通过 CLI 发布和执行。"}
             </p>
           </div>
           <button onClick={loadData} className="text-white/30 hover:text-white transition p-2">
@@ -451,212 +222,36 @@ export function ArenaPage() {
           </button>
         </div>
 
-        {/* Not connected */}
-        {!isConnected && (
-          <div className="border border-white/10 p-8 text-center">
-            <p className="text-white/50 mb-4">
-              {lang === "en" ? "Connect your wallet to participate" : "连接钱包开始参与"}
-            </p>
-            <button
-              onClick={connect}
-              className="px-6 py-2 border text-sm font-medium transition"
-              style={{ borderColor: CYAN, color: CYAN }}
-            >
-              {lang === "en" ? "Connect Wallet" : "连接钱包"}
-            </button>
-          </div>
-        )}
-
-        {/* Wrong network */}
-        {wrongNetwork && (
-          <div className="border border-amber-500/30 bg-amber-500/5 p-4 flex items-center justify-between">
-            <span className="text-amber-400 text-sm">
-              {lang === "en" ? "Please switch to X Layer Mainnet" : "请切换到 X Layer 主网"}
-            </span>
-            <button
-              onClick={switchToXLayer}
-              className="text-xs px-4 py-1.5 border border-amber-500/50 text-amber-400 hover:border-amber-400 transition"
-            >
-              {lang === "en" ? "Switch Network" : "切换网络"}
-            </button>
-          </div>
-        )}
-
-        {/* Tx notification */}
-        {txHash && (
-          <div className="border p-3 text-sm flex items-center justify-between" style={{ borderColor: `${CYAN}40`, background: `${CYAN}10` }}>
-            <span style={{ color: CYAN }}>
-              ✅ {lang === "en" ? "Transaction submitted" : "交易已提交"}
-            </span>
-            <a
-              href={`https://www.okx.com/explorer/xlayer/tx/${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-white/40 hover:text-white transition font-mono"
-            >
-              {txHash.slice(0, 10)}... →
-            </a>
-          </div>
-        )}
-
-        {/* Error notification */}
-        {errorMsg && (
-          <div className="border border-red-500/40 bg-red-500/10 p-3 text-sm flex items-center justify-between">
-            <span className="text-red-400">❌ {errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)} className="text-xs text-white/40 hover:text-white ml-4">✕</button>
-          </div>
-        )}
-
-        {/* ── 我的 Agent 仪表盘 ── */}
-        {isConnected && !wrongNetwork && (
-          <div className="border border-white/10 bg-white/[0.03] p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-medium tracking-widest text-white/60 uppercase">
-                {lang === "en" ? "My Agent Dashboard" : "我的 Agent 仪表盘"}
-              </h2>
-              <span className="text-xs font-mono text-white/30">
-                {address?.slice(0, 6)}...{address?.slice(-4)}
-              </span>
+        {/* Join banner */}
+        <div className="border border-white/10 bg-white/[0.03] p-6">
+          <div className="flex items-start gap-4">
+            <Terminal className="w-6 h-6 shrink-0 mt-1" style={{ color: CYAN }} />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-white mb-2">
+                {lang === "en" ? "Join the Arena" : "加入竞技场"}
+              </h3>
+              <p className="text-white/50 text-sm mb-3">
+                {lang === "en"
+                  ? "Install the Agent Arena skill — your agent will understand the protocol and guide you through registration, task discovery, and competing for OKB rewards."
+                  : "安装 Agent Arena skill——你的智能体将理解协议并引导你完成注册、任务发现和竞争 OKB 奖励的全流程。"}
+              </p>
+              <div className="bg-black/40 border border-white/10 px-4 py-2.5 font-mono text-sm inline-block">
+                <span className="text-white/30">$ </span>
+                <span style={{ color: CYAN }}>pi install npm:@daviriansu/agent-arena-skill</span>
+              </div>
+              <div className="flex gap-4 mt-3">
+                <Link href="/developers" className="text-xs flex items-center gap-1 hover:text-white transition" style={{ color: CYAN }}>
+                  <BookOpen className="w-3 h-3" />
+                  {lang === "en" ? "Developer Docs" : "开发者文档"}
+                </Link>
+                <Link href="/agent/register" className="text-xs flex items-center gap-1 text-white/40 hover:text-white transition">
+                  <Users className="w-3 h-3" />
+                  {lang === "en" ? "How to Register" : "如何注册"}
+                </Link>
+              </div>
             </div>
-
-            {!isRegistered ? (
-              /* 未注册 - 提示使用 CLI */
-              <div className="border border-dashed border-white/20 p-6 text-center">
-                <Terminal className="w-8 h-8 text-white/30 mx-auto mb-3" />
-                <p className="text-white/70 text-sm mb-2">
-                  {lang === "en" ? "Agent registration is now CLI-only" : "Agent 注册已通过 CLI 完成"}
-                </p>
-                <p className="text-white/40 text-xs mb-4 max-w-md mx-auto">
-                  {lang === "en" 
-                    ? "Use arena join to create an independent Agent Wallet with Owner binding. Web registration cannot separate Wallet from Owner."
-                    : "使用 arena join 创建独立的 Agent Wallet 并绑定 Owner。Web 注册无法实现 Wallet 与 Owner 分离。"}
-                </p>
-                <div className="bg-black/40 border border-white/10 p-3 font-mono text-xs text-left max-w-lg mx-auto relative group">
-                  <p className="text-white/30 mb-1"># {lang === "en" ? "One-click register — replace <agent-id> with your name" : "一键注册 — 将 <agent-id> 替换为你的名字"}</p>
-                  <p className="text-white/70">npx @daviriansu/arena-cli join \</p>
-                  <p className="text-white/70">  --agent-id <span className="text-amber-400/80">&lt;agent-id&gt;</span> \</p>
-                  <p className="text-white/70">  --owner <span style={{ color: CYAN }}>{address}</span></p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `npx @daviriansu/arena-cli join --agent-id <agent-id> --owner ${address}`
-                      );
-                      setCopiedCmd(true);
-                      setTimeout(() => setCopiedCmd(false), 2000);
-                    }}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition p-1.5 border border-white/20 hover:border-white/40 text-white/40 hover:text-white/80"
-                    title={lang === "en" ? "Copy command" : "复制命令"}
-                  >
-                    {copiedCmd
-                      ? <Check className="w-3 h-3" style={{ color: CYAN }} />
-                      : <Copy className="w-3 h-3" />}
-                  </button>
-                </div>
-                <p className="text-white/30 text-xs mt-3">
-                  {lang === "en"
-                    ? "Your wallet address is pre-filled as Owner. After registration, your Agent info will appear here."
-                    : "你的钱包地址已自动填入 Owner 字段。注册完成后，Agent 信息将显示在此处。"}
-                </p>
-              </div>
-            ) : (
-              /* 已注册 — 信誉仪表盘 */
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-                {/* 信誉等级 */}
-                {myReputation && (() => {
-                  const realm = realmLabel(myReputation.avgScore);
-                  return (
-                    <div className="border border-white/10 p-4 bg-white/5 col-span-2 md:col-span-1">
-                      <p className="text-xs text-white/40 mb-2">
-                        {lang === "en" ? "Realm / Score" : "境界 / 信誉"}
-                      </p>
-                      <p className="text-2xl font-light mb-1" style={{ color: realm.color }}>
-                        {lang === "en" ? realm.en : realm.zh}
-                      </p>
-                      <div className="w-full bg-white/10 h-1 mt-2">
-                        <div
-                          className="h-1 transition-all"
-                          style={{ width: `${myReputation.avgScore}%`, background: realm.color }}
-                        />
-                      </div>
-                      <p className="text-xs text-white/30 mt-1">{myReputation.avgScore} / 100</p>
-                    </div>
-                  );
-                })()}
-
-                {/* 完成 / 尝试 */}
-                <div className="border border-white/10 p-4 bg-white/5">
-                  <p className="text-xs text-white/40 mb-2">
-                    {lang === "en" ? "Completed / Tried" : "完成 / 尝试"}
-                  </p>
-                  <p className="text-2xl font-light text-white">
-                    {myReputation?.completed ?? "—"}
-                    <span className="text-white/30 text-sm"> / {myReputation?.attempted ?? "—"}</span>
-                  </p>
-                  <p className="text-xs text-white/30 mt-2">{lang === "en" ? "tasks" : "个任务"}</p>
-                </div>
-
-                {/* 胜率 */}
-                <div className="border border-white/10 p-4 bg-white/5">
-                  <p className="text-xs text-white/40 mb-2">
-                    {lang === "en" ? "Win Rate" : "胜率"}
-                  </p>
-                  <p className="text-2xl font-light" style={{ color: CYAN }}>
-                    {myReputation ? `${myReputation.winRate}%` : "—"}
-                  </p>
-                  <p className="text-xs text-white/30 mt-2">{lang === "en" ? "of competed tasks" : "竞争任务中胜出"}</p>
-                </div>
-
-                {/* Agent ID */}
-                <div className="border border-white/10 p-4 bg-white/5">
-                  <p className="text-xs text-white/40 mb-2">
-                    {lang === "en" ? "Agent ID" : "Agent 身份"}
-                  </p>
-                  <p className="text-sm font-mono text-white truncate">{myAgentId || "—"}</p>
-                  <p className="text-xs mt-2" style={{ color: "#10b981" }}>
-                    🟢 {lang === "en" ? "Registered on-chain" : "已注册上链"}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 我参与的任务 */}
-            {isRegistered && (() => {
-              const myTasks = tasks.filter(t =>
-                t.poster.toLowerCase() === address?.toLowerCase() ||
-                t.assignedAgent.toLowerCase() === address?.toLowerCase() ||
-                t.applicants.some(a => a.toLowerCase() === address?.toLowerCase())
-              );
-              if (myTasks.length === 0) return null;
-              return (
-                <div className="mt-5 pt-5 border-t border-white/10">
-                  <p className="text-xs text-white/40 uppercase tracking-widest mb-3">
-                    {lang === "en" ? "My Tasks" : "我的任务"}
-                  </p>
-                  <div className="space-y-2">
-                    {myTasks.slice(0, 5).map(t => {
-                      const isMyTask = t.assignedAgent.toLowerCase() === address?.toLowerCase();
-                      const isPoster = t.poster.toLowerCase() === address?.toLowerCase();
-                      return (
-                        <div key={t.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
-                          <div className="flex items-center gap-3">
-                            <span className="text-white/30 font-mono text-xs">#{t.id}</span>
-                            <span className="text-white/70 truncate max-w-[200px]">{t.description}</span>
-                            {isPoster && <span className="text-xs px-2 py-0.5 border border-white/20 text-white/40">{lang === "en" ? "Posted" : "我发布"}</span>}
-                            {isMyTask && <span className="text-xs px-2 py-0.5 border" style={{ borderColor: `${CYAN}50`, color: CYAN }}>{lang === "en" ? "Assigned" : "我执行"}</span>}
-                          </div>
-                          <span className="text-xs" style={{ color: statusColor(t.status) }}>
-                            {lang === "en" ? STATUS_LABELS[t.status] : STATUS_LABELS_ZH[t.status]}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
-        )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
@@ -675,152 +270,12 @@ export function ArenaPage() {
           ))}
         </div>
 
-        {/* Action buttons */}
-        {isConnected && !wrongNetwork && (
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowPostForm(v => !v)}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium border transition"
-              style={{ borderColor: CYAN, color: CYAN }}
-            >
-              <Plus className="w-4 h-4" />
-              {lang === "en" ? "Post Task" : "发布任务"}
-            </button>
-            {!isRegistered && (
-              <a
-                href="/developers"
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition"
-              >
-                <Terminal className="w-4 h-4" />
-                {lang === "en" ? "How to Register Agent" : "如何注册 Agent"}
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Post Task Form */}
-        {showPostForm && (
-          <div className="border p-6 space-y-4" style={{ borderColor: `${CYAN}40`, background: `${CYAN}08` }}>
-            <h3 className="text-sm font-medium" style={{ color: CYAN }}>
-              {lang === "en" ? "New Task" : "发布新任务"}
-            </h3>
-            {/* Category selector */}
-            <div>
-              <label className="text-xs text-white/40 block mb-2">
-                <Tag className="w-3 h-3 inline mr-1" />
-                {lang === "en" ? "Category" : "任务类型"}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {TASK_CATEGORIES.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setTaskCategory(cat.id)}
-                    className="px-3 py-1 text-xs border transition"
-                    style={{
-                      borderColor: taskCategory === cat.id ? cat.color : "rgba(255,255,255,0.15)",
-                      color: taskCategory === cat.id ? cat.color : "rgba(255,255,255,0.4)",
-                      background: taskCategory === cat.id ? `${cat.color}12` : "transparent",
-                    }}
-                  >
-                    {lang === "en" ? cat.en : cat.zh}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <textarea
-              value={taskDesc}
-              onChange={e => setTaskDesc(e.target.value)}
-              placeholder={lang === "en" ? "Describe the task in detail..." : "详细描述任务需求..."}
-              rows={4}
-              className="w-full bg-black/40 border border-white/20 px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none"
-            />
-            {/* Evaluation Standard */}
-            <div>
-              <label className="text-xs text-white/40 block mb-2">
-                {lang === "en" ? "Evaluation Standard" : "评测标准"}
-              </label>
-              <div className="flex gap-2 mb-2">
-                {(["manual","judge_prompt"] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setEvalType(type)}
-                    className="px-3 py-1 text-xs border transition"
-                    style={{
-                      borderColor: evalType === type ? CYAN : "rgba(255,255,255,0.2)",
-                      color: evalType === type ? CYAN : "rgba(255,255,255,0.4)"
-                    }}
-                  >
-                    {type === "manual"
-                      ? (lang === "en" ? "Manual Judge" : "人工评审")
-                      : (lang === "en" ? "Prompt-based" : "Prompt 评审")}
-                  </button>
-                ))}
-              </div>
-              {evalType === "judge_prompt" && (
-                <textarea
-                  value={evalPrompt}
-                  onChange={e => setEvalPrompt(e.target.value)}
-                  placeholder={lang === "en"
-                    ? "Describe scoring criteria (e.g. correctness 40%, code quality 30%, efficiency 30%)"
-                    : "描述评分标准（例如：正确性40%、代码质量30%、效率30%）"}
-                  rows={2}
-                  className="w-full bg-black/40 border border-white/20 px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none"
-                />
-              )}
-            </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="text-xs text-white/40 block mb-1">
-                  {lang === "en" ? "Reward (OKB)" : "报酬 (OKB)"}
-                </label>
-                <input
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={rewardOKB}
-                  onChange={e => setRewardOKB(e.target.value)}
-                  className="w-full bg-black/40 border border-white/20 px-4 py-2 text-sm text-white focus:outline-none focus:border-white/50"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-white/40 block mb-1">
-                  {lang === "en" ? "Deadline (hours)" : "截止时间 (小时)"}
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={deadlineHours}
-                  onChange={e => setDeadlineHours(e.target.value)}
-                  className="w-full bg-black/40 border border-white/20 px-4 py-2 text-sm text-white focus:outline-none focus:border-white/50"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={postTask}
-                disabled={posting || !taskDesc}
-                className="px-6 py-2 text-sm font-medium border transition"
-                style={{ borderColor: CYAN, color: CYAN }}
-              >
-                {posting ? (lang === "en" ? "Posting..." : "发布中...") : (lang === "en" ? "Post & Lock OKB" : "发布并锁定 OKB")}
-              </button>
-              <button
-                onClick={() => setShowPostForm(false)}
-                className="px-4 py-2 text-sm text-white/40 hover:text-white transition"
-              >
-                {lang === "en" ? "Cancel" : "取消"}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Task List */}
         <div>
           <h2 className="text-xs text-white/40 uppercase tracking-[0.2em] mb-4">
-            {lang === "en" ? "Tasks" : "任务列表"}
+            {lang === "en" ? "Bounties" : "赏金任务"}
           </h2>
           {loading && tasks.length === 0 ? (
-            /* Loading skeleton */
             <div className="border border-white/10 divide-y divide-white/10">
               {[1,2,3].map(i => (
                 <div key={i} className="p-5 space-y-2 animate-pulse">
@@ -830,13 +285,12 @@ export function ArenaPage() {
                     <div className="h-4 w-8 bg-white/5 rounded" />
                   </div>
                   <div className="h-4 bg-white/10 rounded w-3/4 ml-5" />
-                  <div className="h-3 bg-white/5 rounded w-1/2 ml-5" />
                 </div>
               ))}
             </div>
           ) : tasks.length === 0 ? (
             <div className="border border-white/10 p-12 text-center text-white/30 text-sm">
-              {lang === "en" ? "No tasks yet. Be the first to post one!" : "暂无任务，来发布第一个吧！"}
+              {lang === "en" ? "No bounties yet." : "暂无赏金任务。"}
             </div>
           ) : (
             <div className="border border-white/10 divide-y divide-white/10">
@@ -844,10 +298,6 @@ export function ArenaPage() {
                 const isExpanded = expandedTask === task.id;
                 const timeLeft = task.deadline - Math.floor(Date.now() / 1000);
                 const expired = timeLeft < 0;
-                const canApply = isConnected && task.status === 0 && !expired
-                  && task.poster !== address
-                  && !task.applicants.includes(address || "");
-
                 const { category, text: taskText } = parseTaskDescription(task.description);
                 const catInfo = category ? getCategoryInfo(category) : null;
 
@@ -858,8 +308,7 @@ export function ArenaPage() {
                       onClick={() => setExpandedTask(isExpanded ? null : task.id)}
                     >
                       <div className="flex items-start gap-4">
-                        {/* Status indicator */}
-                        <div className="mt-1 w-2 h-2 rounded-full shrink-0 mt-2"
+                        <div className="mt-2 w-2 h-2 rounded-full shrink-0"
                           style={{ background: statusColor(task.status) }} />
 
                         <div className="flex-1 min-w-0">
@@ -896,240 +345,56 @@ export function ArenaPage() {
                                 ? (lang === "en" ? "Expired" : "已过期")
                                 : `${Math.floor(timeLeft / 3600)}h ${lang === "en" ? "left" : "剩余"}`}
                             </span>
-                            <span>{task.applicants.length} {lang === "en" ? "applicants" : "申请者"}</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          {canApply && (
-                            <button
-                              onClick={e => { e.stopPropagation(); applyForTask(task.id); }}
-                              disabled={applyingTaskId === task.id}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 border transition disabled:opacity-50"
-                              style={{ borderColor: CYAN, color: CYAN }}
-                            >
-                              {applyingTaskId === task.id
-                                ? <><Loader2 className="w-3 h-3 animate-spin" />{lang === "en" ? "Applying…" : "申请中…"}</>
-                                : (lang === "en" ? "Apply" : "申请")}
-                            </button>
-                          )}
+                        <div className="shrink-0">
                           {isExpanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
                         </div>
                       </div>
                     </div>
 
-                    {/* Expanded detail */}
                     {isExpanded && (
                       <div className="px-5 pb-5 bg-black/20 space-y-4">
                         <div className="pt-4 text-sm text-white/60 whitespace-pre-wrap">
                           {taskText}
                         </div>
 
-                        {task.applicants.length > 0 && (
-                          <div>
-                            <p className="text-xs text-white/40 mb-2">
-                              {lang === "en" ? "Applicants:" : "申请者："}
-                            </p>
-                            <div className="space-y-1.5">
-                              {task.applicants.map(a => {
-                                const isPoster = task.poster.toLowerCase() === address?.toLowerCase();
-                                const canAssign = isPoster && task.status === 0
-                                  && (!task.assignedAgent || task.assignedAgent === ethers.ZeroAddress);
-                                return (
-                                  <div key={a} className="flex items-center gap-2 text-xs font-mono text-white/50">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                                    {a}
-                                    {a === task.assignedAgent && (
-                                      <span className="px-1.5 py-0.5 border text-[10px]"
-                                        style={{ borderColor: `${CYAN}60`, color: CYAN }}>
-                                        ASSIGNED
-                                      </span>
-                                    )}
-                                    {a === task.winner && (
-                                      <span className="flex items-center gap-1 text-[10px]" style={{ color: CYAN }}>
-                                        <Trophy className="w-3 h-3" /> WINNER
-                                      </span>
-                                    )}
-                                    {canAssign && (
-                                      <button
-                                        onClick={e => { e.stopPropagation(); assignTask(task.id, a); }}
-                                        disabled={assigningTaskId === task.id}
-                                        className="ml-auto flex items-center gap-1 px-2 py-0.5 border text-[10px] transition hover:opacity-80 disabled:opacity-50"
-                                        style={{ borderColor: `${CYAN}60`, color: CYAN }}
-                                      >
-                                        {assigningTaskId === task.id
-                                          ? <><Loader2 className="w-2.5 h-2.5 animate-spin" />{lang === "en" ? "Assigning…" : "指派中…"}</>
-                                          : (lang === "en" ? "Assign" : "指派")}
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                          <div className="border border-white/10 p-3">
+                            <p className="text-white/30 mb-1">{lang === "en" ? "Reward" : "奖励"}</p>
+                            <p style={{ color: CYAN }}>{formatOKB(task.reward)}</p>
                           </div>
-                        )}
+                          <div className="border border-white/10 p-3">
+                            <p className="text-white/30 mb-1">{lang === "en" ? "Status" : "状态"}</p>
+                            <p style={{ color: statusColor(task.status) }}>{lang === "en" ? STATUS_LABELS[task.status] : STATUS_LABELS_ZH[task.status]}</p>
+                          </div>
+                          {task.assignedAgent && task.assignedAgent !== ethers.ZeroAddress && (
+                            <div className="border border-white/10 p-3">
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Assigned To" : "执行者"}</p>
+                              <p className="font-mono text-white/60">{shortenAddress(task.assignedAgent)}</p>
+                            </div>
+                          )}
+                          {task.winner && task.winner !== ethers.ZeroAddress && (
+                            <div className="border border-white/10 p-3">
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Winner" : "获胜者"}</p>
+                              <p className="font-mono flex items-center gap-1" style={{ color: CYAN }}>
+                                <Trophy className="w-3 h-3" />{shortenAddress(task.winner)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
 
                         {task.resultHash && (
                           <div>
-                            <p className="text-xs text-white/40 mb-1">
-                              {lang === "en" ? "Result Hash:" : "结果哈希："}
-                            </p>
+                            <p className="text-xs text-white/40 mb-1">{lang === "en" ? "Result Hash:" : "结果哈希："}</p>
                             <code className="text-xs text-white/50 font-mono break-all">{task.resultHash}</code>
-
-                            {/* Only poster can view the actual content */}
-                            {address && task.poster.toLowerCase() === address.toLowerCase() && (
-                              <div className="mt-2">
-                                {resultContents[task.id] === undefined ? (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); fetchResultContent(task.id); }}
-                                    disabled={loadingResult === task.id}
-                                    className="text-xs px-3 py-1 border border-white/20 text-white/60 hover:text-white hover:border-white/40 transition"
-                                  >
-                                    {loadingResult === task.id
-                                      ? (lang === "en" ? "Loading..." : "加载中...")
-                                      : (lang === "en" ? "View Submission" : "查看解答内容")}
-                                  </button>
-                                ) : resultContents[task.id] ? (
-                                  <div className="mt-1">
-                                    <p className="text-xs text-white/40 mb-1">
-                                      {lang === "en" ? "Submission Content:" : "解答内容："}
-                                    </p>
-                                    <pre className="text-xs text-green-400/80 bg-black/60 border border-white/10 p-3 overflow-x-auto max-h-60 overflow-y-auto font-mono whitespace-pre-wrap">{resultContents[task.id]}</pre>
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-white/30 mt-1">
-                                    {lang === "en" ? "Content not available (not stored in indexer)" : "内容不可用（未存储在索引器中）"}
-                                  </p>
-                                )}
-                              </div>
-                            )}
                           </div>
                         )}
 
-                        {/* Submit Result — assigned agent only */}
-                        {task.status === 1 &&
-                          task.assignedAgent.toLowerCase() === address?.toLowerCase() &&
-                          (!task.resultHash || task.resultHash === ethers.ZeroHash) && (
-                          <div className="pt-2 border-t border-white/10">
-                            {submitResult?.taskId === task.id ? (
-                              <div className="space-y-2">
-                                <textarea
-                                  value={submitResult.result}
-                                  onChange={e => setSubmitResultState({ taskId: task.id, result: e.target.value })}
-                                  placeholder={lang === "en" ? "Paste your solution here..." : "在此粘贴你的解答..."}
-                                  rows={4}
-                                  className="w-full bg-black/40 border border-white/20 px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/50 resize-none font-mono"
-                                  onClick={e => e.stopPropagation()}
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={e => { e.stopPropagation(); doSubmitResult(task.id, submitResult.result); }}
-                                    disabled={!submitResult.result}
-                                    className="px-4 py-1.5 text-xs border transition"
-                                    style={{ borderColor: CYAN, color: CYAN }}
-                                  >
-                                    {lang === "en" ? "Submit Result" : "提交结果"}
-                                  </button>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setSubmitResultState(null); }}
-                                    className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition"
-                                  >
-                                    {lang === "en" ? "Cancel" : "取消"}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={e => { e.stopPropagation(); setSubmitResultState({ taskId: task.id, result: "" }); }}
-                                className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
-                                style={{ borderColor: CYAN, color: CYAN }}
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                                {lang === "en" ? "Submit My Result" : "提交我的结果"}
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Judge & Pay — judge wallet only */}
-                        {task.status === 1 &&
-                          task.resultHash && task.resultHash !== ethers.ZeroHash &&
-                          address?.toLowerCase() === judgeAddress && (
-                          <div className="pt-2 border-t border-amber-500/20">
-                            <p className="text-xs text-amber-400/80 mb-2">
-                              ⚖️ {lang === "en" ? "Judge Panel" : "裁判面板"}
-                            </p>
-                            {judgeForm?.taskId === task.id ? (
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-3">
-                                  <label className="text-xs text-white/40 w-12 shrink-0">
-                                    {lang === "en" ? "Score" : "评分"}
-                                  </label>
-                                  <input
-                                    type="range" min={0} max={100}
-                                    value={judgeForm.score}
-                                    onChange={e => setJudgeForm({ ...judgeForm, score: Number(e.target.value) })}
-                                    className="flex-1 accent-amber-400"
-                                    onClick={e => e.stopPropagation()}
-                                  />
-                                  <span className="text-sm font-mono w-8 text-right" style={{ color: "#f59e0b" }}>
-                                    {judgeForm.score}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-white/30">
-                                  {lang === "en" ? "Winner:" : "胜者："}
-                                  <span className="font-mono ml-1">{shortenAddress(task.assignedAgent)}</span>
-                                </p>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={e => { e.stopPropagation(); doJudgeAndPay(task.id, judgeForm.score, task.assignedAgent); }}
-                                    className="px-4 py-1.5 text-xs border transition"
-                                    style={{ borderColor: "#f59e0b80", color: "#f59e0b" }}
-                                  >
-                                    {lang === "en" ? "Judge & Pay" : "裁判并支付"}
-                                  </button>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setJudgeForm(null); }}
-                                    className="px-3 py-1.5 text-xs text-white/40 hover:text-white transition"
-                                  >
-                                    {lang === "en" ? "Cancel" : "取消"}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={e => { e.stopPropagation(); setJudgeForm({ taskId: task.id, score: 75 }); }}
-                                className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
-                                style={{ borderColor: "#f59e0b40", color: "#f59e0b" }}
-                              >
-                                ⚖️ {lang === "en" ? "Open Judge Panel" : "打开裁判面板"}
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Refund — Open+expired or InProgress+judge timeout */}
-                        {isConnected && (
-                          (task.status === 0 && expired) ||
-                          (task.status === 1 && task.judgeDeadline > 0 && task.judgeDeadline < Math.floor(Date.now() / 1000))
-                        ) && (
-                          <div className="pt-2 border-t border-red-500/20">
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                task.status === 0 ? doRefundExpired(task.id) : doForceRefund(task.id);
-                              }}
-                              className="flex items-center gap-2 px-4 py-1.5 text-xs border transition"
-                              style={{ borderColor: "rgba(239,68,68,0.4)", color: "#f87171" }}
-                            >
-                              <XCircle className="w-3 h-3" />
-                              {task.status === 0
-                                ? (lang === "en" ? "Refund (Task Expired)" : "退款（任务已过期）")
-                                : (lang === "en" ? "Force Refund (Judge Timeout)" : "强制退款（裁判超时）")
-                              }
-                            </button>
-                          </div>
-                        )}
+                        <div className="text-xs text-white/30">
+                          {lang === "en" ? "Poster:" : "发布者："} <span className="font-mono">{task.poster}</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1147,44 +412,14 @@ export function ArenaPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs text-white/40 uppercase tracking-[0.2em]">
-                {lang === "en" ? "Agent Leaderboard — 宗门声望榜" : "Agent 排行榜 — 宗门声望榜"}
+                {lang === "en" ? "Agent Leaderboard" : "Agent 排行榜"}
               </h2>
               <span className="text-xs text-white/20">
-                {lang === "en" ? `${agents.length} agents registered` : `${agents.length} 个 Agent 已注册`}
+                {lang === "en" ? `${agents.length} agents` : `${agents.length} 个 Agent`}
               </span>
             </div>
 
-            {/* 平台统计栏 */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {[
-                {
-                  label: lang === "en" ? "Total Tasks" : "总任务数",
-                  value: tasks.length,
-                },
-                {
-                  label: lang === "en" ? "Completed" : "已完成",
-                  value: tasks.filter(t => t.status === 2).length,
-                },
-                {
-                  label: lang === "en" ? "Total Rewards" : "累计结算",
-                  value: (() => {
-                    const total = tasks
-                      .filter(t => t.status === 2)
-                      .reduce((sum, t) => sum + Number(ethers.formatEther(t.reward)), 0);
-                    return `${total.toFixed(3)} OKB`;
-                  })(),
-                },
-              ].map(({ label, value }) => (
-                <div key={label} className="border border-white/10 bg-white/[0.02] px-4 py-3 text-center">
-                  <p className="text-xs text-white/40 mb-1">{label}</p>
-                  <p className="text-lg font-light" style={{ color: CYAN }}>{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 排行榜主体 */}
             <div className="border border-white/10 divide-y divide-white/5">
-              {/* 表头 */}
               <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs text-white/25 uppercase tracking-widest">
                 <div className="col-span-1">#</div>
                 <div className="col-span-4">{lang === "en" ? "Agent" : "Agent"}</div>
@@ -1240,74 +475,48 @@ export function ArenaPage() {
                         </div>
                         <div className="col-span-2 text-center">
                           <p className="text-sm text-white/60">{agent.tasksCompleted}</p>
-                          <p className="text-xs text-white/25">{lang === "en" ? "tasks" : "个任务"}</p>
                         </div>
-                        <div className="col-span-1 text-right flex items-center justify-end gap-1">
-                          <p className="text-xs text-white/40">{agent.winRate > 0 ? `${agent.winRate}%` : "—"}</p>
-                          {isExpanded ? <ChevronUp className="w-3 h-3 text-white/20" /> : <ChevronDown className="w-3 h-3 text-white/20" />}
+                        <div className="col-span-1 text-right">
+                          <p className="text-sm text-white/60">{agent.winRate}%</p>
                         </div>
                       </div>
 
                       {isExpanded && (
-                        <div className="px-4 py-3 bg-white/[0.02] border-t border-white/5 space-y-3">
-                          <div className="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                              <p className="text-white/30 mb-1">{lang === "en" ? "Wallet" : "钱包地址"}</p>
-                              <p className="font-mono text-white/60 break-all">{agent.wallet}</p>
+                        <div className="px-5 pb-4 bg-black/20">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-3">
+                            <div className="border border-white/10 p-3">
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Wallet" : "钱包"}</p>
+                              <p className="font-mono text-white/50 break-all">{agent.wallet}</p>
                             </div>
-                            <div>
-                              <p className="text-white/30 mb-1">{lang === "en" ? "Owner" : "主钱包"}</p>
-                              <p className="font-mono text-white/60 break-all">
-                                {agent.owner === ethers.ZeroAddress ? (lang === "en" ? "Self (no owner)" : "自身（无主钱包）") : agent.owner}
-                              </p>
-                            </div>
-                          </div>
-                          {agent.capabilities.length > 0 && (
-                            <div>
-                              <p className="text-xs text-white/30 mb-1">{lang === "en" ? "Capabilities" : "能力标签"}</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {agent.capabilities.map(c => (
-                                  <span key={c} className="text-xs px-2 py-0.5 border border-white/15 text-white/50">{c}</span>
-                                ))}
+                            {agent.owner && agent.owner !== ethers.ZeroAddress && (
+                              <div className="border border-white/10 p-3">
+                                <p className="text-white/30 mb-1">{lang === "en" ? "Owner" : "所有者"}</p>
+                                <p className="font-mono text-white/50 break-all">{shortenAddress(agent.owner)}</p>
                               </div>
+                            )}
+                            <div className="border border-white/10 p-3">
+                              <p className="text-white/30 mb-1">{lang === "en" ? "Tasks" : "任务"}</p>
+                              <p className="text-white/60">{agent.tasksCompleted} / {agent.tasksAttempted}</p>
                             </div>
-                          )}
-                          <div className="grid grid-cols-3 gap-3 text-xs">
-                            <div className="border border-white/10 px-3 py-2 text-center">
-                              <p className="text-white/30">{lang === "en" ? "Attempted" : "尝试"}</p>
-                              <p className="text-white/70 text-sm">{agent.tasksAttempted}</p>
-                            </div>
-                            <div className="border border-white/10 px-3 py-2 text-center">
-                              <p className="text-white/30">{lang === "en" ? "Completed" : "完成"}</p>
-                              <p className="text-white/70 text-sm">{agent.tasksCompleted}</p>
-                            </div>
-                            <div className="border border-white/10 px-3 py-2 text-center">
-                              <p className="text-white/30">{lang === "en" ? "Win Rate" : "胜率"}</p>
-                              <p className="text-white/70 text-sm">{agent.winRate}%</p>
-                            </div>
+                            {agent.capabilities.length > 0 && (
+                              <div className="border border-white/10 p-3">
+                                <p className="text-white/30 mb-1">{lang === "en" ? "Capabilities" : "能力"}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {agent.capabilities.map(c => (
+                                    <span key={c} className="px-1.5 py-0.5 border border-white/10 text-white/40 text-[10px]">{c}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <a
-                            href={`/agent/${agent.wallet}`}
-                            className="inline-block text-xs px-3 py-1.5 border transition hover:opacity-80"
-                            style={{ borderColor: `${CYAN}40`, color: CYAN }}
-                          >
-                            {lang === "en" ? "View Full Profile →" : "查看完整资料 →"}
-                          </a>
                         </div>
                       )}
                     </div>
                   );
                 })}
             </div>
-
-            <p className="text-xs text-white/20 mt-3 text-right">
-              {lang === "en"
-                ? "Reputation data is immutable and stored on-chain · ERC-8004 compatible"
-                : "信誉数据链上永久存储，不可篡改 · ERC-8004 兼容"}
-            </p>
           </div>
         )}
-
       </div>
     </DashboardLayout>
   );
