@@ -1,17 +1,14 @@
 // arena join — secure one-command agent onboarding
 //
 // Wallet priority:
-//   1. --onchainos-address <addr>   ← EVM address from OKX OnchainOS TEE wallet
-//                                     (user created via: npx skills add okx/onchainos-skills)
-//   2. --generate (default)         ← generate new AES-256 encrypted local keystore
-//
-// Owner binding:
-//   --owner <address>  links agent wallet to your main wallet (MetaMask/hardware)
-//   stored on-chain via registerAgent(..., ownerAddr)
+//   1. OKX OnchainOS Agentic Wallet (TEE, default)
+//      — auto-detects onchainos CLI → login → OTP → get address
+//   2. Local encrypted keystore (fallback when onchainos unavailable)
 //
 // Usage:
-//   npx @daviriansu/arena-cli join --onchainos-address 0xABC... --owner 0xYourWallet
-//   npx @daviriansu/arena-cli join --agent-id my-agent --owner 0xYourWallet
+//   arena join                                           # auto-detect OnchainOS
+//   arena join --agent-id my-agent --owner 0xYourWallet  # with options
+//   arena join --local                                   # force local keystore
 
 import chalk from "chalk";
 import ora from "ora";
@@ -20,13 +17,22 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from "fs";
 import path from "path";
 import os from "os";
 import { config } from "../lib/config.js";
-import { createLocalWallet } from "../lib/wallet.js";
+import {
+  isOnchainosInstalled,
+  getOnchainosStatus,
+  onchainosLogin,
+  onchainosVerify,
+  getOnchainosAddress,
+  createLocalWallet,
+  sendOnchainOSTransaction,
+} from "../lib/wallet.js";
 import { cmdStart } from "./start.js";
 
-const CONTRACT_DEFAULTS = {
-  address: "0xad869d5901A64F9062bD352CdBc75e35Cd876E09",
-  rpc:     "https://testrpc.xlayer.tech/terigon",
-  indexer: "https://agent-arena-indexer.workers.dev",
+const MAINNET_DEFAULTS = {
+  address: "0x964441A7f7B7E74291C05e66cb98C462c4599381",
+  rpc:     "https://rpc.xlayer.tech",
+  indexer: "https://agent-arena-indexer.davirain-yin.workers.dev",
+  chainId: 196,
 };
 
 const ABI = [
@@ -39,7 +45,7 @@ import { randomBytes } from "node:crypto";
 const KEYSTORE_DIR = path.join(os.homedir(), ".arena", "keys");
 
 export async function cmdJoin(opts: {
-  onchainOsAddress?: string;   // ← from OKX OnchainOS TEE wallet
+  onchainOsAddress?: string;
   agentId?:          string;
   owner?:            string;
   contract?:         string;
@@ -49,12 +55,14 @@ export async function cmdJoin(opts: {
   minReward?:        string;
   exec?:             string;
   dry?:              boolean;
+  local?:            boolean;
 }) {
-  const contractAddr = opts.contract || CONTRACT_DEFAULTS.address;
-  const rpcUrl       = opts.rpc      || CONTRACT_DEFAULTS.rpc;
-  const indexerUrl   = opts.indexer  || CONTRACT_DEFAULTS.indexer;
+  const contractAddr = opts.contract || MAINNET_DEFAULTS.address;
+  const rpcUrl       = opts.rpc      || MAINNET_DEFAULTS.rpc;
+  const indexerUrl   = opts.indexer  || MAINNET_DEFAULTS.indexer;
   const capabilities = (opts.capabilities || "coding,analysis").split(",").map(s => s.trim());
-  const provider     = new ethers.JsonRpcProvider(rpcUrl);
+  const chainId      = rpcUrl.includes("testrpc") ? 195 : MAINNET_DEFAULTS.chainId;
+  const provider     = new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true });
 
   console.log(chalk.cyan.bold("\n🏟️  Agent Arena — Joining Network\n"));
 
@@ -62,25 +70,86 @@ export async function cmdJoin(opts: {
 
   let agentAddress: string;
   let walletBackend: "onchainos" | "local";
-  let signerForReg: ethers.Signer | null = null;   // null when OnchainOS (CLI can't sign)
+  let signerForReg: ethers.Signer | null = null;
   let localPassword: string | undefined;
+  let useOnchainOS = false;
+
+  if (!opts.local && !opts.onchainOsAddress) {
+    // ── Path A: Auto-detect and setup OnchainOS ────────────────────────────
+    if (isOnchainosInstalled()) {
+      console.log(chalk.green("✔ onchainos CLI detected"));
+
+      let status = getOnchainosStatus();
+
+      if (!status.loggedIn) {
+        // Interactive login flow
+        console.log(chalk.dim("\n  OnchainOS Agentic Wallet requires login.\n"));
+
+        const { input } = await import("@inquirer/prompts");
+        const email = await input({
+          message: "Email address (for OnchainOS wallet login):",
+          validate: (v) => v.includes("@") ? true : "Enter a valid email",
+        });
+
+        const loginSpinner = ora("Sending verification code...").start();
+        const loginOk = onchainosLogin(email);
+        if (!loginOk) {
+          loginSpinner.fail(chalk.red("Failed to send verification code"));
+          console.log(chalk.yellow("\n  Falling back to local keystore wallet.\n"));
+        } else {
+          loginSpinner.succeed(chalk.green(`Verification code sent to ${email}`));
+
+          const otp = await input({
+            message: "Enter verification code from email:",
+            validate: (v) => /^\d{6}$/.test(v) ? true : "Enter 6-digit code",
+          });
+
+          const verifySpinner = ora("Verifying...").start();
+          const verifyResult = onchainosVerify(otp);
+          if (!verifyResult.ok) {
+            verifySpinner.fail(chalk.red("Verification failed"));
+            console.log(chalk.yellow("\n  Falling back to local keystore wallet.\n"));
+          } else {
+            verifySpinner.succeed(chalk.green(`Logged in as ${verifyResult.accountName || "wallet"}`));
+            status = getOnchainosStatus();
+          }
+        }
+      }
+
+      if (status.loggedIn) {
+        const addr = getOnchainosAddress();
+        if (addr) {
+          agentAddress  = addr;
+          walletBackend = "onchainos";
+          useOnchainOS  = true;
+          console.log(chalk.green(`\n✔ OnchainOS Agentic Wallet: ${agentAddress}`));
+          console.log(chalk.dim("  Private key sealed in TEE secure enclave. Never exposed.\n"));
+        } else {
+          console.log(chalk.yellow("  Could not get wallet address from OnchainOS"));
+          console.log(chalk.yellow("  Falling back to local keystore wallet.\n"));
+        }
+      }
+    } else {
+      console.log(chalk.dim("  onchainos CLI not found. Install for TEE wallet security:"));
+      console.log(chalk.dim("  curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh\n"));
+      console.log(chalk.dim("  Falling back to local keystore wallet.\n"));
+    }
+  }
 
   if (opts.onchainOsAddress) {
-    // ── Path A: OKX OnchainOS TEE wallet ─────────────────────────────────────
+    // ── Path B: Explicit OnchainOS address ──────────────────────────────────
     if (!ethers.isAddress(opts.onchainOsAddress)) {
       console.log(chalk.red("❌ Invalid --onchainos-address"));
       process.exit(1);
     }
-
     agentAddress  = opts.onchainOsAddress;
     walletBackend = "onchainos";
-    signerForReg  = null;   // signing happens in TEE; CLI can't sign for this address
+    useOnchainOS  = true;
+    console.log(chalk.green(`✔ OnchainOS TEE wallet: ${agentAddress}`));
+  }
 
-    console.log(chalk.green(`✔ OKX OnchainOS TEE wallet: ${agentAddress}`));
-    console.log(chalk.dim("  Private key sealed in secure enclave. CLI never touches it.\n"));
-
-  } else {
-    // ── Path B: generate / reuse local keystore wallet ───────────────────────
+  if (!useOnchainOS) {
+    // ── Path C: Local keystore (fallback) ───────────────────────────────────
     mkdirSync(KEYSTORE_DIR, { recursive: true });
 
     const pwdFile = path.join(KEYSTORE_DIR, ".password");
@@ -128,16 +197,13 @@ export async function cmdJoin(opts: {
       console.log(chalk.dim(`  Keystore: ${path.join(KEYSTORE_DIR, agentAddress.toLowerCase() + ".json")}`));
     }
 
-    // Balance check
+    // Balance check for local wallet (needs gas funding)
     const balance = await provider.getBalance(agentAddress);
     if (parseFloat(ethers.formatEther(balance)) < 0.0005) {
       console.log(chalk.yellow(`\n⚠️  Fund this address with OKB for gas:`));
       console.log(chalk.dim(`   Address: ${agentAddress}`));
-      console.log(chalk.dim(`   Faucet:  https://www.okx.com/web3/faucet  (X-Layer Testnet)\n`));
+      console.log(chalk.dim(`   X-Layer is gas-free but registration txns still need a small balance.\n`));
     }
-
-    console.log(chalk.dim(`\n  Tip: use --onchainos-address for TEE-secured wallet (no private key on disk)`));
-    console.log(chalk.dim(`       npx skills add okx/onchainos-skills  →  create wallet  →  pass address here\n`));
   }
 
   // ── Step 2: Validate owner address ────────────────────────────────────────
@@ -149,31 +215,58 @@ export async function cmdJoin(opts: {
     }
     ownerAddress = opts.owner;
     console.log(chalk.dim(`  Owner:  ${ownerAddress}  (bound on-chain as controller)`));
-    console.log(chalk.dim(`  Agent:  ${agentAddress}  (signs transactions)\n`));
+    console.log(chalk.dim(`  Agent:  ${agentAddress!}  (signs transactions)\n`));
   }
 
   // ── Step 3: Persist config ─────────────────────────────────────────────────
-  const agentId = opts.agentId || `agent-${agentAddress.slice(2, 8).toLowerCase()}`;
+  const agentId = opts.agentId || `agent-${agentAddress!.slice(2, 8).toLowerCase()}`;
   config.set("contractAddress", contractAddr);
   config.set("indexerUrl",      indexerUrl);
   config.set("rpcUrl",          rpcUrl);
   config.set("agentId",         agentId);
   config.set("capabilities",    capabilities);
-  config.set("walletAddress",   agentAddress);
-  config.set("walletBackend",   walletBackend);
+  config.set("walletAddress",   agentAddress!);
+  config.set("walletBackend",   walletBackend!);
   config.set("minReward",       opts.minReward || "0.001");
 
   // ── Step 4: Register on-chain ─────────────────────────────────────────────
   const readContract = new ethers.Contract(contractAddr, ABI, provider);
-  const agentData    = await readContract.agents(agentAddress);
+  const agentData    = await readContract.agents(agentAddress!);
 
   if (agentData.registered) {
-    const boundOwner = agentData.owner !== ethers.ZeroAddress ? agentData.owner : agentAddress;
+    const boundOwner = agentData.owner !== ethers.ZeroAddress ? agentData.owner : agentAddress!;
     console.log(chalk.green(`✔ Already registered as "${agentData.agentId}"`) +
       chalk.dim(`  owner: ${boundOwner}\n`));
 
+  } else if (useOnchainOS) {
+    // OnchainOS — use contract-call (atomic TEE sign + broadcast)
+    const regSpinner = ora(`Registering "${agentId}" on-chain via OnchainOS...`).start();
+    try {
+      const iface    = new ethers.Interface(ABI);
+      const metadata = JSON.stringify({ capabilities, version: "1.0.0" });
+      const calldata = iface.encodeFunctionData("registerAgent", [agentId, metadata, ownerAddress]);
+
+      const txHash = await sendOnchainOSTransaction({
+        to: contractAddr,
+        data: calldata,
+        from: agentAddress!,
+      });
+
+      regSpinner.succeed(chalk.green("Registered on-chain via OnchainOS TEE!"));
+      console.log(chalk.dim(`   Agent ID: ${agentId}`));
+      console.log(chalk.dim(`   Wallet:   ${agentAddress!}  [TEE secured]`));
+      if (ownerAddress !== ethers.ZeroAddress) {
+        console.log(chalk.dim(`   Owner:    ${ownerAddress}  ✓ bound`));
+      }
+      console.log(chalk.dim(`   Tx:       ${txHash}`));
+      console.log(chalk.dim(`   Explorer: https://www.okx.com/web3/explorer/xlayer/tx/${txHash}\n`));
+    } catch (e: unknown) {
+      regSpinner.fail(chalk.red(`Registration failed: ${e instanceof Error ? e.message : String(e)}`));
+      process.exit(1);
+    }
+
   } else if (signerForReg) {
-    // Local wallet — CLI can sign directly
+    // Local wallet — ethers.js sign directly
     const regSpinner = ora(`Registering "${agentId}" on-chain...`).start();
     try {
       const writeContract = new ethers.Contract(contractAddr, ABI, signerForReg);
@@ -182,38 +275,16 @@ export async function cmdJoin(opts: {
       const receipt  = await tx.wait();
       regSpinner.succeed(chalk.green("Registered on-chain!"));
       console.log(chalk.dim(`   Agent ID: ${agentId}`));
-      console.log(chalk.dim(`   Wallet:   ${agentAddress}`));
+      console.log(chalk.dim(`   Wallet:   ${agentAddress!}`));
       if (ownerAddress !== ethers.ZeroAddress) {
         console.log(chalk.dim(`   Owner:    ${ownerAddress}  ✓ bound`));
       }
       console.log(chalk.dim(`   Tx:       ${receipt.hash}`));
-      console.log(chalk.dim(`   Explorer: https://www.okx.com/web3/explorer/xlayer-test/tx/${receipt.hash}\n`));
+      console.log(chalk.dim(`   Explorer: https://www.okx.com/web3/explorer/xlayer/tx/${receipt.hash}\n`));
     } catch (e: unknown) {
       regSpinner.fail(chalk.red(`Registration failed: ${e instanceof Error ? e.message : String(e)}`));
       process.exit(1);
     }
-
-  } else {
-    // OnchainOS wallet — CLI can't sign; emit calldata for agent to broadcast
-    const metadata = JSON.stringify({ capabilities, version: "1.0.0" });
-    const iface    = new ethers.Interface(ABI);
-    const calldata = iface.encodeFunctionData("registerAgent", [agentId, metadata, ownerAddress]);
-
-    console.log(chalk.yellow("⚡ OnchainOS wallet detected — CLI cannot sign for TEE keys.\n"));
-    console.log(chalk.white("Ask your Agent to broadcast this registration transaction:\n"));
-    console.log(chalk.dim("─────────────────────────────────────────────────────────"));
-    console.log(JSON.stringify({
-      event:    "sign_required",
-      reason:   "registerAgent",
-      to:       contractAddr,
-      data:     calldata,
-      from:     agentAddress,
-      chainId:  1952,
-      note:     "Broadcast via OnchainOS: '帮我广播这笔交易'",
-    }, null, 2));
-    console.log(chalk.dim("─────────────────────────────────────────────────────────\n"));
-    console.log(chalk.dim("Once registered, run:  arena start\n"));
-    return;   // exit — agent handles the rest
   }
 
   // ── Step 5: Start daemon ───────────────────────────────────────────────────
@@ -222,7 +293,6 @@ export async function cmdJoin(opts: {
     console.log(chalk.yellow("\n⚠️  No --exec provided — daemon will apply for tasks but cannot execute them."));
     console.log(chalk.dim("   To execute tasks and earn OKB, restart with:"));
     console.log(chalk.white("   arena start --exec \"node my-solver.js\"\n"));
-    console.log(chalk.dim("   Or use the SDK directly for custom execution logic.\n"));
   } else {
     console.log(chalk.green(`✅ Joined! Starting daemon as "${agentId}" with executor...\n`));
   }

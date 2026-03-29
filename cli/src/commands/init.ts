@@ -6,7 +6,15 @@ import { input, select, checkbox } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
 import { config } from "../lib/config.js";
-import { probeOnchainOS, createLocalWallet, importLocalWallet } from "../lib/wallet.js";
+import {
+  isOnchainosInstalled,
+  getOnchainosStatus,
+  onchainosLogin,
+  onchainosVerify,
+  getOnchainosAddress,
+  createLocalWallet,
+  importLocalWallet,
+} from "../lib/wallet.js";
 
 export async function cmdInit() {
   console.log(chalk.cyan.bold("\n🏟️  Agent Arena — Setup\n"));
@@ -21,12 +29,12 @@ export async function cmdInit() {
 
   const indexerUrl = await input({
     message: "Indexer URL:",
-    default: "https://agent-arena-indexer.workers.dev",
+    default: "https://agent-arena-indexer.davirain-yin.workers.dev",
   });
 
   const rpcUrl = await input({
     message: "X-Layer RPC URL:",
-    default: "https://testrpc.xlayer.tech/terigon",
+    default: "https://rpc.xlayer.tech",
   });
 
   config.set("contractAddress", contractAddress);
@@ -54,18 +62,95 @@ export async function cmdInit() {
   });
   config.set("capabilities", capabilities);
 
-  // 4. Wallet — OnchainOS first
-  const spinner = ora("Probing OKX OnchainOS...").start();
-  const onchainAddr = probeOnchainOS();
+  // 4. Wallet — OnchainOS Agentic Wallet first, local keystore fallback
+  const spinner = ora("Detecting OKX OnchainOS...").start();
 
-  if (onchainAddr) {
-    spinner.succeed(chalk.green(`OKX OnchainOS detected — wallet: ${onchainAddr}`));
-    console.log(chalk.dim("  Private key stays in TEE. This CLI never touches it.\n"));
-    config.set("walletAddress", onchainAddr);
-    config.set("walletBackend", "onchainos");
+  let walletSetup = false;
+  if (isOnchainosInstalled()) {
+    const status = getOnchainosStatus();
+
+    if (status.loggedIn) {
+      const addr = getOnchainosAddress();
+      if (addr) {
+        spinner.succeed(chalk.green(`OKX OnchainOS Agentic Wallet: ${addr}`));
+        console.log(chalk.dim("  Private key sealed in TEE secure enclave. Never exposed.\n"));
+        config.set("walletAddress", addr);
+        config.set("walletBackend", "onchainos");
+        walletSetup = true;
+      }
+    }
+
+    if (!walletSetup) {
+      spinner.info(chalk.yellow("OnchainOS detected but not logged in"));
+      const walletChoice = await select({
+        message: "Wallet setup:",
+        choices: [
+          { name: "Login to OnchainOS (recommended — TEE secured)", value: "onchainos" },
+          { name: "Create local keystore (fallback)",               value: "local-create" },
+          { name: "Import private key (fallback)",                  value: "local-import" },
+        ],
+      });
+
+      if (walletChoice === "onchainos") {
+        const email = await input({
+          message: "Email address (for OnchainOS login):",
+          validate: (v) => v.includes("@") ? true : "Enter a valid email",
+        });
+
+        const loginSpin = ora("Sending verification code...").start();
+        const loginOk = onchainosLogin(email);
+        if (loginOk) {
+          loginSpin.succeed(chalk.green(`Verification code sent to ${email}`));
+          const otp = await input({
+            message: "Enter 6-digit verification code:",
+            validate: (v) => /^\d{6}$/.test(v) ? true : "Enter 6-digit code",
+          });
+          const verifySpin = ora("Verifying...").start();
+          const verifyResult = onchainosVerify(otp);
+          if (verifyResult.ok) {
+            const addr = getOnchainosAddress();
+            if (addr) {
+              verifySpin.succeed(chalk.green(`OnchainOS wallet ready: ${addr}`));
+              config.set("walletAddress", addr);
+              config.set("walletBackend", "onchainos");
+              walletSetup = true;
+            } else {
+              verifySpin.fail(chalk.red("Could not get wallet address"));
+            }
+          } else {
+            verifySpin.fail(chalk.red("Verification failed"));
+          }
+        } else {
+          loginSpin.fail(chalk.red("Failed to send verification code"));
+        }
+
+        if (!walletSetup) {
+          console.log(chalk.yellow("\n  Falling back to local keystore.\n"));
+        }
+      }
+
+      if (!walletSetup) {
+        const { password } = await import("@inquirer/prompts");
+        const pwd  = await password({ message: "Set wallet password:" });
+        const pwd2 = await password({ message: "Confirm password:" });
+        if (pwd !== pwd2) { console.log(chalk.red("❌ Passwords don't match.")); process.exit(1); }
+
+        const spin2 = ora("Creating keystore...").start();
+        let wallet;
+        if (walletChoice === "local-import") {
+          const pk = await input({ message: "Private key (0x...):" });
+          wallet = await importLocalWallet(pk, pwd);
+        } else {
+          wallet = await createLocalWallet(pwd);
+        }
+        spin2.succeed(chalk.green(`Wallet ready: ${wallet.address}`));
+        console.log(chalk.yellow(`\n⚠️  Fund this address with OKB for gas: ${wallet.address}\n`));
+        walletSetup = true;
+      }
+    }
   } else {
-    spinner.warn(chalk.yellow("OnchainOS not found — using local keystore (fallback)"));
-    console.log(chalk.dim("  Install onchainos for TEE wallet: https://github.com/okx/onchainos-skills\n"));
+    spinner.warn(chalk.yellow("OnchainOS not found — using local keystore"));
+    console.log(chalk.dim("  Install for TEE wallet: curl -sSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | sh\n"));
 
     const walletAction = await select({
       message: "Local wallet:",
@@ -89,8 +174,7 @@ export async function cmdInit() {
       wallet = await importLocalWallet(pk, pwd);
     }
     spin2.succeed(chalk.green(`Wallet ready: ${wallet.address}`));
-    console.log(chalk.yellow(`\n⚠️  Fund this address with OKB for gas: ${wallet.address}`));
-    console.log(chalk.dim("   Testnet faucet: https://www.okx.com/web3/explorer/xlayer-test\n"));
+    console.log(chalk.yellow(`\n⚠️  Fund this address with OKB for gas: ${wallet.address}\n`));
   }
 
   // 5. Task strategy

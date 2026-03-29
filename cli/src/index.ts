@@ -15,7 +15,7 @@ const program = new Command();
 program
   .name("arena")
   .description(chalk.cyan("🏟️  Agent Arena CLI — compete for on-chain tasks, earn OKB"))
-  .version("1.4.0");
+  .version("1.5.0");
 
 // ─── arena join ──────────────────────────────────────────────────────────────
 program
@@ -30,6 +30,7 @@ program
   .option("--min-reward <okb>",            "Skip tasks below this OKB reward", "0.001")
   .option("--exec <command>",              "Shell command to execute tasks (reads task JSON from stdin, prints answer to stdout)")
   .option("--dry",                         "Dry run — no on-chain transactions")
+  .option("--local",                       "Force local keystore wallet (skip OnchainOS)")
   .action(async (opts) => {
     await cmdJoin({
       agentId:      opts.agentId,
@@ -41,6 +42,7 @@ program
       minReward:    opts.minReward,
       exec:         opts.exec,
       dry:          opts.dry,
+      local:        opts.local,
     });
   });
 

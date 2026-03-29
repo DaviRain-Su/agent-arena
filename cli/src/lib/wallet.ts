@@ -1,7 +1,7 @@
-// src/lib/wallet.ts — OnchainOS TEE wallet (with local keystore fallback)
+// src/lib/wallet.ts — OnchainOS Agentic Wallet (with local keystore fallback)
 //
 // Priority:
-//   1. OKX OnchainOS (TEE, private key never exposed)
+//   1. OKX OnchainOS Agentic Wallet (TEE, private key never exposed)
 //   2. Local encrypted keystore (fallback for dev/testing)
 
 import { ethers } from "ethers";
@@ -12,10 +12,34 @@ import os from "os";
 import { config } from "./config.js";
 
 const KEYSTORE_DIR = path.join(os.homedir(), ".arena", "keys");
-const XLAYER_CHAIN_ID = "1952";
+const XLAYER_CHAIN_ID = 196;
+
+// ─── OnchainOS helpers ────────────────────────────────────────────────────────
+
+function runOnchainos(args: string[]): { ok: boolean; stdout: string; stderr: string } {
+  const result = spawnSync("onchainos", args, { encoding: "utf8", timeout: 60_000 });
+  if (result.error) {
+    return { ok: false, stdout: "", stderr: result.error.message };
+  }
+  return {
+    ok: result.status === 0,
+    stdout: result.stdout?.trim() || "",
+    stderr: result.stderr?.trim() || "",
+  };
+}
+
+function parseOnchainosJson(stdout: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(stdout);
+    if (parsed.ok && parsed.data) return parsed.data as Record<string, unknown>;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
 // ─── OnchainOS Signer Adapter ─────────────────────────────────────────────────
-// Wraps onchainos CLI as an ethers.js Signer.
+// Uses `onchainos wallet contract-call` for transactions (TEE signing + broadcast).
 // Private key lives in TEE — never touches this process.
 
 export class OnchainOSSigner extends ethers.AbstractSigner {
@@ -30,56 +54,38 @@ export class OnchainOSSigner extends ethers.AbstractSigner {
     return this.address;
   }
 
-  async signTransaction(tx: ethers.TransactionRequest): Promise<string> {
-    // Serialize unsigned tx to hex, pass to onchainos for signing
-    const unsignedHex = ethers.Transaction.from({
-      to:       tx.to as string,
-      data:     tx.data as string || "0x",
-      value:    tx.value ? BigInt(tx.value.toString()) : 0n,
-      gasLimit: tx.gasLimit ? BigInt(tx.gasLimit.toString()) : 0n,
-      gasPrice: tx.gasPrice ? BigInt(tx.gasPrice.toString()) : 0n,
-      nonce:    typeof tx.nonce === "number" ? tx.nonce : 0,
-      chainId:  BigInt(XLAYER_CHAIN_ID),
-    }).unsignedSerialized;
-
-    const result = spawnSync("onchainos", [
-      "wallet", "sign-tx",
-      "--chain", XLAYER_CHAIN_ID,
-      "--tx", unsignedHex,
-    ], { encoding: "utf8" });
-
-    if (result.error || result.status !== 0) {
-      throw new Error(`onchainos sign-tx failed: ${result.stderr || result.error?.message}`);
-    }
-
-    const signedHex = result.stdout.trim();
-    if (!signedHex.startsWith("0x")) {
-      throw new Error(`onchainos returned unexpected output: ${signedHex.slice(0, 80)}`);
-    }
-    return signedHex;
+  async signTransaction(_tx: ethers.TransactionRequest): Promise<string> {
+    throw new Error(
+      "OnchainOS uses atomic contract-call (sign+broadcast). " +
+      "Use sendOnchainOSTransaction() instead of signTransaction()."
+    );
   }
 
   async signMessage(message: string | Uint8Array): Promise<string> {
-    const msgHex = typeof message === "string"
-      ? Buffer.from(message).toString("hex")
-      : Buffer.from(message).toString("hex");
+    const msgStr = typeof message === "string"
+      ? message
+      : Buffer.from(message).toString("utf8");
 
-    const result = spawnSync("onchainos", [
+    const result = runOnchainos([
       "wallet", "sign-message",
-      "--chain", XLAYER_CHAIN_ID,
-      "--message", `0x${msgHex}`,
-    ], { encoding: "utf8" });
+      "--chain", String(XLAYER_CHAIN_ID),
+      "--from", this.address,
+      "--message", msgStr,
+    ]);
 
-    if (result.error || result.status !== 0) {
+    if (!result.ok) {
       throw new Error(`onchainos sign-message failed: ${result.stderr}`);
     }
-    return result.stdout.trim();
+
+    const data = parseOnchainosJson(result.stdout);
+    if (data?.signature) return data.signature as string;
+    throw new Error(`Unexpected sign-message output: ${result.stdout.slice(0, 100)}`);
   }
 
   async signTypedData(
-    domain: ethers.TypedDataDomain,
-    types: Record<string, ethers.TypedDataField[]>,
-    value: Record<string, unknown>,
+    _domain: ethers.TypedDataDomain,
+    _types: Record<string, ethers.TypedDataField[]>,
+    _value: Record<string, unknown>,
   ): Promise<string> {
     throw new Error("signTypedData not yet supported by OnchainOS adapter");
   }
@@ -87,6 +93,127 @@ export class OnchainOSSigner extends ethers.AbstractSigner {
   connect(provider: ethers.Provider): OnchainOSSigner {
     return new OnchainOSSigner(this.address, provider);
   }
+}
+
+/**
+ * Send a transaction via OnchainOS (atomic: build → TEE sign → broadcast).
+ * Returns the txHash directly — no ethers TransactionResponse.
+ */
+export async function sendOnchainOSTransaction(opts: {
+  to: string;
+  data?: string;
+  value?: bigint;
+  from?: string;
+}): Promise<string> {
+  const args = [
+    "wallet", "contract-call",
+    "--to", opts.to,
+    "--chain", String(XLAYER_CHAIN_ID),
+  ];
+
+  if (opts.data) args.push("--input-data", opts.data);
+  if (opts.value && opts.value > 0n) {
+    args.push("--amt", opts.value.toString());
+  }
+  if (opts.from) args.push("--from", opts.from);
+
+  const result = runOnchainos(args);
+
+  // Handle confirming response (exit code 2)
+  if (!result.ok && result.stdout.includes('"confirming"')) {
+    // Auto-confirm by re-running with --force
+    args.push("--force");
+    const retryResult = runOnchainos(args);
+    if (!retryResult.ok) {
+      throw new Error(`onchainos contract-call failed after confirm: ${retryResult.stderr}`);
+    }
+    const retryData = parseOnchainosJson(retryResult.stdout);
+    if (retryData?.txHash) return retryData.txHash as string;
+    throw new Error(`No txHash in retry response: ${retryResult.stdout.slice(0, 200)}`);
+  }
+
+  if (!result.ok) {
+    throw new Error(`onchainos contract-call failed: ${result.stderr || result.stdout}`);
+  }
+
+  const data = parseOnchainosJson(result.stdout);
+  if (data?.txHash) return data.txHash as string;
+  throw new Error(`No txHash in response: ${result.stdout.slice(0, 200)}`);
+}
+
+// ─── OnchainOS Auth Flow ──────────────────────────────────────────────────────
+
+/** Check if onchainos CLI is installed */
+export function isOnchainosInstalled(): boolean {
+  const result = spawnSync("onchainos", ["--version"], { encoding: "utf8", timeout: 5_000 });
+  return !result.error && result.status === 0;
+}
+
+/** Check login status. Returns { loggedIn, email, accountId, accountName } */
+export function getOnchainosStatus(): {
+  loggedIn: boolean;
+  email?: string;
+  accountId?: string;
+  accountName?: string;
+} {
+  const result = runOnchainos(["wallet", "status"]);
+  if (!result.ok) return { loggedIn: false };
+
+  const data = parseOnchainosJson(result.stdout);
+  if (!data) return { loggedIn: false };
+
+  return {
+    loggedIn: data.loggedIn === true,
+    email: data.email as string | undefined,
+    accountId: data.currentAccountId as string | undefined,
+    accountName: data.currentAccountName as string | undefined,
+  };
+}
+
+/** Start login flow with email (sends OTP) */
+export function onchainosLogin(email: string, locale = "en-US"): boolean {
+  const result = runOnchainos(["wallet", "login", email, "--locale", locale]);
+  return result.ok;
+}
+
+/** Verify OTP code */
+export function onchainosVerify(otp: string): {
+  ok: boolean;
+  accountId?: string;
+  accountName?: string;
+} {
+  const result = runOnchainos(["wallet", "verify", otp]);
+  if (!result.ok) return { ok: false };
+
+  const data = parseOnchainosJson(result.stdout);
+  return {
+    ok: true,
+    accountId: data?.accountId as string | undefined,
+    accountName: data?.accountName as string | undefined,
+  };
+}
+
+/** Get wallet addresses (returns first EVM address on X-Layer) */
+export function getOnchainosAddress(): string | null {
+  const result = runOnchainos(["wallet", "addresses", "--chain", String(XLAYER_CHAIN_ID)]);
+  if (!result.ok) return null;
+
+  // Try JSON parse first
+  const data = parseOnchainosJson(result.stdout);
+  if (data) {
+    // Look for EVM address in various response formats
+    const addresses = (data.addresses || data.addressList || data) as Record<string, unknown>[];
+    if (Array.isArray(addresses)) {
+      for (const entry of addresses) {
+        const addr = (entry as Record<string, unknown>).address as string;
+        if (addr?.startsWith("0x")) return addr;
+      }
+    }
+  }
+
+  // Fallback: regex match
+  const match = result.stdout.match(/0x[a-fA-F0-9]{40}/);
+  return match ? match[0] : null;
 }
 
 // ─── Local Keystore (fallback) ────────────────────────────────────────────────
@@ -125,25 +252,17 @@ async function loadLocalWallet(password: string, provider: ethers.Provider): Pro
   return (w as ethers.Wallet).connect(provider);
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── Legacy probe (backward compat) ──────────────────────────────────────────
 
-/** Probe onchainos CLI availability and return wallet address if available */
+/** @deprecated Use isOnchainosInstalled() + getOnchainosStatus() instead */
 export function probeOnchainOS(): string | null {
-  try {
-    const status = spawnSync("onchainos", ["wallet", "status"], { encoding: "utf8" });
-    if (status.error || status.status !== 0) return null;
-
-    const addrResult = spawnSync("onchainos", [
-      "wallet", "addresses", "--chain", XLAYER_CHAIN_ID,
-    ], { encoding: "utf8" });
-
-    if (addrResult.error || addrResult.status !== 0) return null;
-    const match = addrResult.stdout.match(/0x[a-fA-F0-9]{40}/);
-    return match ? match[0] : null;
-  } catch {
-    return null;
-  }
+  if (!isOnchainosInstalled()) return null;
+  const status = getOnchainosStatus();
+  if (!status.loggedIn) return null;
+  return getOnchainosAddress();
 }
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Get a signer for the agent wallet.
@@ -155,13 +274,18 @@ export async function getAgentSigner(
 ): Promise<ethers.Signer & { isOnchainOS?: boolean; address: string }> {
 
   // 1. Try OnchainOS first
-  const onchainAddr = probeOnchainOS();
-  if (onchainAddr) {
-    const signer = new OnchainOSSigner(onchainAddr, provider) as OnchainOSSigner & { isOnchainOS: boolean };
-    signer.isOnchainOS = true;
-    config.set("walletAddress", onchainAddr);
-    config.set("walletBackend", "onchainos");
-    return signer;
+  if (isOnchainosInstalled()) {
+    const status = getOnchainosStatus();
+    if (status.loggedIn) {
+      const addr = getOnchainosAddress();
+      if (addr) {
+        const signer = new OnchainOSSigner(addr, provider) as OnchainOSSigner & { isOnchainOS: boolean };
+        signer.isOnchainOS = true;
+        config.set("walletAddress", addr);
+        config.set("walletBackend", "onchainos");
+        return signer;
+      }
+    }
   }
 
   // 2. Fall back to local keystore

@@ -1,6 +1,6 @@
 {
   "name": "@daviriansu/agent-arena-skill",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Agent Skill for Agent Arena — teaches AI agents how to join the decentralized task marketplace on X-Layer",
   "keywords": [
     "pi-package",
