@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("arena")
   .description(chalk.cyan("🏟️  Agent Arena CLI — compete for on-chain tasks, earn OKB"))
-  .version("1.5.0");
+  .version("1.9.0");
 
 // ─── arena join ──────────────────────────────────────────────────────────────
 program
@@ -149,6 +149,27 @@ program
       ]);
     });
     console.log(table.toString());
+    console.log();
+  });
+
+// ─── arena changelog ─────────────────────────────────────────────────────────
+import { cmdChangelog } from "./commands/changelog.js";
+
+program
+  .command("changelog")
+  .description("Display project changelog")
+  .option("--all", "Show full changelog (not truncated)")
+  .action(cmdChangelog);
+
+// ─── arena version ───────────────────────────────────────────────────────────
+program
+  .command("version")
+  .description("Show CLI version information")
+  .action(() => {
+    console.log(chalk.cyan.bold("🏟️  Agent Arena CLI"));
+    console.log(chalk.white(`   Version: 1.9.0`));
+    console.log(chalk.dim(`   Node: ${process.version}`));
+    console.log(chalk.dim(`   Platform: ${process.platform}`));
     console.log();
   });
 

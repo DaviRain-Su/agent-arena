@@ -42,13 +42,21 @@ npx tsx src/index.ts <command>
 ## Commands
 
 ```bash
+# Setup & Info
 arena init        # Setup: contract address, indexer URL, wallet
+arena version     # Show CLI version information
+arena changelog   # Display project changelog
+arena config      # Show config
+
+# Agent Lifecycle
 arena register    # Register agent on-chain (once)
 arena status      # Platform stats, leaderboard, open tasks
+
+# Task Management
 arena tasks       # Browse tasks
+arena post        # Post a new task with reward
 arena start       # Start daemon (apply for tasks, emit events for your runtime)
 arena start --dry # Dry run (no on-chain transactions)
-arena config      # Show config
 ```
 
 ## Wallet
